@@ -115,7 +115,7 @@
   - https://assetstore.unity.com/packages/3d/characters/humanoids/rpg-tiny-hero-duo-pbr-polyart-225148?locale=ja-JP
   
 - UniRx
-  - https://github.com/neuecc/UniRx/tree/master
+  - https://github.com/neuecc/UniRx/tree/master  
   [こちら](/project/Assets/Plugins/UniRx)に配置しており、ライセンスもこちらを参照のこと
   
 
