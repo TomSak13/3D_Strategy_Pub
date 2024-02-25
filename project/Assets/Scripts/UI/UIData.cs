@@ -1,21 +1,15 @@
-using System;
+﻿using System;
 
 public class UIData
 {
     public class CharacterUIParam
     {
-        public CharacterUIParam()
-        {
-            Name = "";
-            Hp = 0;
-            Move = 0;
-        }
-        public string Name;
-        public int Hp;
-        public int Move;
+        public string Name = "";
+        public int Hp = 0;
+        public int Move = 0;
     }
 
-    public event Action UICharacterParamChanged;
+    public event Action UICharacterParamChanged = default!;
 
     private CharacterUIParam _playerCharacter;
     private CharacterUIParam _enemyCharacter;
@@ -23,12 +17,12 @@ public class UIData
     public CharacterUIParam PlayerCharacter { get => _playerCharacter; }
     public CharacterUIParam EnemyCharacter { get => _enemyCharacter; }
 
-    public void Initialize()
+    public UIData()
     {
         _playerCharacter = new CharacterUIParam();
         _enemyCharacter = new CharacterUIParam();
     }
-    
+
     public void UpdateCharacterParam(Unit unit)
     {
         if (unit == null)
@@ -48,11 +42,12 @@ public class UIData
             _enemyCharacter.Hp = (int)unit.CurrentHp;
             _enemyCharacter.Move = unit.Move;
         }
+
         UpdateCallback();
     }
 
-    public void UpdateCallback()
+    private void UpdateCallback()
     {
-        UICharacterParamChanged.Invoke();
+        UICharacterParamChanged?.Invoke();
     }
 }

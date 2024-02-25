@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,19 +12,19 @@ public class UIPresenter : MonoBehaviour
         EscapeButton,
         ButtonCount
     }
-    [SerializeField] private UIData _uiData;
-    [SerializeField] private GameObject _playerPanel;
-    [SerializeField] private GameObject _enemyPanel;
+    
+    [SerializeField] private GameObject _playerPanel = default!;
+    [SerializeField] private GameObject _enemyPanel = default!;
 
-    [SerializeField] private GameObject _actionPanel;
-    [SerializeField] private GameObject _turnObj;
-    [SerializeField] private GameObject _gameFinishObj;
+    [SerializeField] private GameObject _actionPanel = default!;
+    [SerializeField] private GameObject _turnObj = default!;
+    [SerializeField] private GameObject _gameFinishObj = default!;
 
-    [SerializeField] private GameObject _targetPanel;
+    [SerializeField] private GameObject _targetPanel = default!;
 
-    [SerializeField] private GameObject _viewModeObj;
+    [SerializeField] private GameObject _viewModeObj = default!;
 
-    [SerializeField] private InputReceiver _receiver;
+    [SerializeField] private InputReceiver _receiver = default!;
 
     private const string HpStr = "HP :";
     private const string MoveStr = "MOVE :";
@@ -35,58 +34,41 @@ public class UIPresenter : MonoBehaviour
     private const string PlayerWinText = "PLAYER WIN!";
     private const string EnemyWinText = "ENEMY WIN!";
 
-    private TextMeshProUGUI _playerName;
-    private TextMeshProUGUI _playerHp;
-    private TextMeshProUGUI _playerMove;
+    [SerializeField] private TextMeshProUGUI _playerName = default!;
+    [SerializeField] private TextMeshProUGUI _playerHp = default!;
+    [SerializeField] private TextMeshProUGUI _playerMove = default!;
 
-    private TextMeshProUGUI _enemyName;
-    private TextMeshProUGUI _enemyHp;
-    private TextMeshProUGUI _enemyMove;
+    [SerializeField] private TextMeshProUGUI _enemyName = default!;
+    [SerializeField] private TextMeshProUGUI _enemyHp = default!;
+    [SerializeField] private TextMeshProUGUI _enemyMove = default!;
 
-    private TextMeshProUGUI _turnText;
-    private TextMeshProUGUI _gameFinishText;
+    [SerializeField] private Button _attackButton = default!;
+    [SerializeField] private Button _defenseButton = default!;
+    [SerializeField] private Button _balanceButton = default!;
+    [SerializeField] private Button _escapeButton = default!;
 
-    private Dictionary<ActionIndex, Button> _actionButton;
+    private UIData _uiData = default!;
 
-    // Start is called before the first frame update
+    [SerializeField] private TextMeshProUGUI _turnText = default!;
+    [SerializeField] private TextMeshProUGUI _gameFinishText = default!;
+
     private void Start()
     {
         _uiData = new UIData();
 
-        if (_playerPanel == null || _enemyPanel == null || _turnObj == null || _gameFinishObj == null 
+        if (_playerPanel == null || _enemyPanel == null || _turnObj == null || _gameFinishObj == null
             || _actionPanel == null || _targetPanel == null || _viewModeObj == null)
         {
             Debug.Log("fail attach UI Object");
             return;
         }
 
-        _uiData.Initialize();
         _uiData.UICharacterParamChanged += OnUIDataChanged;
 
-        _playerName = _playerPanel.transform.Find("Name").gameObject.GetComponent<TextMeshProUGUI>();
-        _playerHp = _playerPanel.transform.Find("Hp").gameObject.GetComponent<TextMeshProUGUI>();
-        _playerMove = _playerPanel.transform.Find("Move").gameObject.GetComponent<TextMeshProUGUI>();
-
-        _enemyName = _enemyPanel.transform.Find("Name").gameObject.GetComponent<TextMeshProUGUI>();
-        _enemyHp = _enemyPanel.transform.Find("Hp").gameObject.GetComponent<TextMeshProUGUI>();
-        _enemyMove = _enemyPanel.transform.Find("Move").gameObject.GetComponent<TextMeshProUGUI>();
-
-        _actionButton = new Dictionary<ActionIndex, Button>();
-
-        Button attackButton = _actionPanel.transform.Find("AttackButton").gameObject.GetComponent<Button>();
-        AsigneActionButton(ActionIndex.AttackButton, attackButton);
-
-        Button defenseButton = _actionPanel.transform.Find("DefenseButton").gameObject.GetComponent<Button>();
-        AsigneActionButton(ActionIndex.DefenseButton, defenseButton);
-
-        Button balanceButton = _actionPanel.transform.Find("BalanceButton").gameObject.GetComponent<Button>();
-        AsigneActionButton(ActionIndex.BalanceButton, balanceButton);
-
-        Button escapeButton = _actionPanel.transform.Find("EscapeButton").gameObject.GetComponent<Button>();
-        AsigneActionButton(ActionIndex.EscapeButton, escapeButton);
-
-        _turnText = _turnObj.GetComponent<TextMeshProUGUI>();
-        _gameFinishText = _gameFinishObj.GetComponent<TextMeshProUGUI>();
+        AssignActionButton(ActionIndex.AttackButton, _attackButton);
+        AssignActionButton(ActionIndex.DefenseButton, _defenseButton);
+        AssignActionButton(ActionIndex.BalanceButton, _balanceButton);
+        AssignActionButton(ActionIndex.EscapeButton, _escapeButton);
 
         _playerName.text = "";
         _playerHp.text = HpStr + "";
@@ -104,18 +86,9 @@ public class UIPresenter : MonoBehaviour
         _viewModeObj.SetActive(false);
     }
 
-    private void Update()
-    {
-        if (_targetPanel == null)
-        {
-            return;
-        }
-    }
-
-    private void AsigneActionButton(ActionIndex actionIndex, Button button)
+    private void AssignActionButton(ActionIndex actionIndex, Button button)
     {
         button.onClick.AddListener(() => OnClickActionButton(actionIndex));
-        _actionButton.Add(actionIndex, button);
     }
 
     private void OnClickActionButton(ActionIndex buttonKey)
@@ -129,21 +102,21 @@ public class UIPresenter : MonoBehaviour
         _receiver.ReceiveOnButton(buttonKey);
     }
 
-    public void DispActionPanel()
+    public void DisplayActionPanel()
     {
         _actionPanel.SetActive(true);
     }
-    public void UnDispActionPanel()
+    public void UnDisplayActionPanel()
     {
         _actionPanel.SetActive(false);
     }
 
-    public void DispViewModeObj()
+    public void DisplayViewModeObj()
     {
         _viewModeObj.SetActive(true);
     }
 
-    public void UnDispViewModeObj()
+    public void UnDisplayViewModeObj()
     {
         _viewModeObj.SetActive(false);
     }
@@ -179,7 +152,7 @@ public class UIPresenter : MonoBehaviour
         _enemyPanel.SetActive(true);
     }
 
-    public void UnDispCharacterParam()
+    public void UnDisplayCharacterParam()
     {
         _playerPanel.SetActive(false);
         _enemyPanel.SetActive(false);
@@ -212,12 +185,13 @@ public class UIPresenter : MonoBehaviour
         UpdateView();
     }
 
-    public void UnDispTurnText()
+    public void UnDisplayTurnText()
     {
         if (_turnObj == null)
         {
             return;
         }
+
         _turnObj.SetActive(false);
     }
 
@@ -227,7 +201,7 @@ public class UIPresenter : MonoBehaviour
         {
             return;
         }
-        
+
         if (winTeam == Unit.Team.Player)
         {
             _gameFinishText.text = PlayerWinText;
@@ -244,12 +218,7 @@ public class UIPresenter : MonoBehaviour
 
     public void SetTurnStartText(GameFieldData.Turn turn)
     {
-        if (_turnObj == null || _turnText == null)
-        {
-            return;
-        }
-
-        if (turn == GameFieldData.Turn.PlayerTurn) 
+        if (turn == GameFieldData.Turn.PlayerTurn)
         {
             _turnText.text = PlayerTurnText;
             _turnText.color = Color.blue;

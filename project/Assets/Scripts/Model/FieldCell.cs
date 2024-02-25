@@ -1,35 +1,31 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class FieldCell : MonoBehaviour
 {
-    public class FieldEffect{
+    public class FieldEffect
+    {
         public float AttackEffect;
         public float DefenseEffect;
         public int MoveEffect;
     }
-    public static string ObjTag = "cell";
+    public static readonly string ObjTag = "cell";
 
-    private bool _isMovable;
-    private Unit _onUnitData;
-    private FieldEffect _fieldEffect;
-    private List<FieldCell> _neighborCells;
-
-    public Unit OnUnitData { get => _onUnitData; }
-    public FieldEffect Effect { get => _fieldEffect; }
-    public bool Movable { get => _isMovable; }
-    public List<FieldCell> NeighborCells { get => _neighborCells; }
-    public void initialize(bool movable, float attackEffect, float defenseEffect, int moveEffect)
+    public Unit OnUnitData { get; private set; } = default!;
+    public FieldEffect Effect { get; private set; } = default!;
+    public bool Movable { get; private set; } = default!;
+    public List<FieldCell> NeighborCells { get; private set; } = default!;
+    public void Initialize(bool movable, float attackEffect, float defenseEffect, int moveEffect)
     {
-        _isMovable = movable;
-        _fieldEffect = new FieldEffect 
-        { 
-            AttackEffect = attackEffect, 
-            DefenseEffect = defenseEffect, 
-            MoveEffect = moveEffect 
+        Movable = movable;
+        Effect = new FieldEffect
+        {
+            AttackEffect = attackEffect,
+            DefenseEffect = defenseEffect,
+            MoveEffect = moveEffect
         };
 
-        _neighborCells = new List<FieldCell>();
+        NeighborCells = new List<FieldCell>();
     }
 
     public void AddNeighborCell(FieldCell neighborCell)
@@ -39,26 +35,21 @@ public class FieldCell : MonoBehaviour
             return;
         }
 
-        _neighborCells.Add(neighborCell);
+        NeighborCells.Add(neighborCell);
     }
 
     public void SetOnUnit(Unit unit)
     {
         if (unit != null)
         {
-            _onUnitData = unit;
-            _isMovable = false;
+            OnUnitData = unit;
+            Movable = false;
         }
     }
 
     public void RemoveUnit()
     {
-        _onUnitData = null;
-        _isMovable = true;
-    }
-
-    public void BreakCell()
-    {
-        /* セルが無くなった場合の処理(必要になった際に実装) */
+        OnUnitData = null!;
+        Movable = true;
     }
 }

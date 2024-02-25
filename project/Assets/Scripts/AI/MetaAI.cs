@@ -3,37 +3,39 @@ using UnityEngine.SceneManagement;
 
 public class MetaAI : MonoBehaviour
 {
-    public const int UnitMaxNum = 3;
-    public const int FieldWidth = 10;
-    public const int FieldLength = 10;
+    private const float RandomVal = 5;
 
-    public const float RandomVal = 5;
+    private const float UnitHpVal = 100f;
+    private const int UnitMoveVal = 5;
+    private const int AttackRangeVal = 1;
 
-    public const int PlayerUnitAttackVal = 30;
-    public const int PlayerUnitDefenseVal = 5;
+    private const int PlayerUnitAttackVal = 30;
+    private const int PlayerUnitDefenseVal = 5;
 
-    public const int EnemyUnitDefenseVal = 5;
+    private const int EnemyUnitDefenseVal = 5;
 
     public enum InvokeName
     {
         RestartScene,
     }
 
-    [SerializeField] private GameObject _fieldPrefab;
-    [SerializeField] private GameObject _maleUnitPrefab;
-    [SerializeField] private GameObject _femaleUnitPrefab;
-    [SerializeField] private GameFieldData _gameField;
-    [SerializeField] private StrategyAI _strategyAI;
-    [SerializeField] private TargetSelecter _targetSelecter;
-    [SerializeField] private TurnChanger _turnChanger;
-    [SerializeField] private InputStrategyShaper _input;
+    [SerializeField] private FieldCell _fieldPrefab = default!;
+    [SerializeField] private Unit _maleUnitPrefab = default!;
+    [SerializeField] private Unit _femaleUnitPrefab = default!;
+    [SerializeField] private GameFieldData _gameField = default!;
+    [SerializeField] private TurnChanger _turnChanger = default!;
+    [SerializeField] private Battle _battle = default!;
+    [SerializeField] private TargetPanel _targetPanel = default!;
+    [SerializeField] private InputReceiver _inputReceiver = default!;
 
-    [SerializeField] private UIPresenter _uiPresenter;
+    private UnitController _unitController = default!;
 
-    [SerializeField] private CommonParam _commonParam;
+    [SerializeField] private UIPresenter _uiPresenter = default!;
 
-    private CellSpawner _cellSpawner;
-    private UnitSpawner _unitSpawner;
+    private TargetSelector _targetSelecter = default!;
+
+    private CellSpawner _cellSpawner = default!;
+    private UnitSpawner _unitSpawner = default!;
 
     private int _enemyAttackNum;
 
@@ -41,54 +43,43 @@ public class MetaAI : MonoBehaviour
     {
         _cellSpawner = new CellSpawner(_fieldPrefab);
         _unitSpawner = new UnitSpawner();
+        _unitController = new UnitController(_battle);
 
         _unitSpawner.UnitDict.Add(UnitSpawner.UnitType.Male, _maleUnitPrefab);
         _unitSpawner.UnitDict.Add(UnitSpawner.UnitType.Female, _femaleUnitPrefab);
 
         _enemyAttackNum = 10;
-        if (_commonParam != null)
+        switch (GameSettingParam.GameDifficulty)
         {
-            switch (_commonParam.GameDifficulty)
-            {
-                case TitleData.Difficulty.Easy:
-                    _enemyAttackNum = 10;
-                    break;
-                case TitleData.Difficulty.Normal:
-                    _enemyAttackNum = PlayerUnitAttackVal;
-                    break;
-                case TitleData.Difficulty.Difficult:
-                    _enemyAttackNum = 50;
-                    break;
-                default:
-                    break;
-            }
+            case TitleData.Difficulty.Easy:
+                _enemyAttackNum = 10;
+                break;
+            case TitleData.Difficulty.Normal:
+                _enemyAttackNum = PlayerUnitAttackVal;
+                break;
+            case TitleData.Difficulty.Difficult:
+                _enemyAttackNum = 50;
+                break;
+
         }
 
-        initializeField();
-        initializeUnit();
-
-        _strategyAI.Initialize(Unit.Team.Enemy, _gameField);
-
-        _input.Initialize(_gameField, GameFieldData.Turn.PlayerTurn);
-
-        _targetSelecter.Initialize(_gameField);
+        InitializeField();
+        InitializeUnits();
 
         _turnChanger.Initialize(_gameField);
+        _targetSelecter = new TargetSelector(_turnChanger, _uiPresenter, _targetPanel, _inputReceiver, _gameField, _unitController);
 
         _turnChanger.SendStartTurn();
-
-        
     }
 
-    // Update is called once per frame
     private void Update()
     {
-        /* 勝敗確認 */
         if (_gameField == null)
         {
-            return;
+            throw new System.InvalidOperationException("_gameField field is null.");
         }
 
+        /* 勝敗確認 */
         if (_gameField.EnemyUnits.Count == 0)
         {
             /* 味方の勝利 */
@@ -101,84 +92,99 @@ public class MetaAI : MonoBehaviour
         }
     }
 
-    public void initializeField()
+    public void OnDestroy()
     {
-        if (_fieldPrefab != null)
-        {
-            for (int i = 0; i < FieldWidth; i++)
-            {
-                for (int j = 0; j < FieldLength; j++)
-                {
-                    Vector3 cordinate = new Vector3(i, 0.0f, j);
-                    FieldCell cell = _cellSpawner.SpawnCell(cordinate);
-                    cell.initialize(true, i, j, i - j); /* モック用:パラメータ設定 */
-                    _gameField.FieldCells.Add(cordinate, cell);
-                }
-            }
+        _targetSelecter.OnDestroy();
+    }
 
-            foreach (var fieldCell in _gameField.FieldCells.Values)
+    private void InitializeField()
+    {
+        if (_fieldPrefab == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < GameFieldData.GameFieldWidth; i++)
+        {
+            for (int j = 0; j < GameFieldData.GameFieldLength; j++)
             {
-                Vector3 cellCordinate = fieldCell.transform.position;
-                if (_gameField.FieldCells.ContainsKey(cellCordinate + Vector3.right))
-                {
-                    fieldCell.AddNeighborCell(_gameField.FieldCells[cellCordinate + Vector3.right]);
-                }
-                if (_gameField.FieldCells.ContainsKey(cellCordinate + Vector3.left))
-                {
-                    fieldCell.AddNeighborCell(_gameField.FieldCells[cellCordinate + Vector3.left]);
-                }
-                if (_gameField.FieldCells.ContainsKey(cellCordinate + Vector3.forward))
-                {
-                    fieldCell.AddNeighborCell(_gameField.FieldCells[cellCordinate + Vector3.forward]);
-                }
-                if (_gameField.FieldCells.ContainsKey(cellCordinate + Vector3.back))
-                {
-                    fieldCell.AddNeighborCell(_gameField.FieldCells[cellCordinate + Vector3.back]);
-                }
+                Vector3 coordinate = new Vector3(i, 0.0f, j);
+                FieldCell cell = _cellSpawner.SpawnCell(coordinate);
+                cell.Initialize(true, i, j, i - j);
+                _gameField.FieldCells.Add(coordinate, cell);
+            }
+        }
+
+        foreach (var fieldCell in _gameField.FieldCells.Values)
+        {
+            Vector3 cellCoordinate = fieldCell.transform.position;
+            if (_gameField.FieldCells.ContainsKey(cellCoordinate + Vector3.right))
+            {
+                fieldCell.AddNeighborCell(_gameField.FieldCells[cellCoordinate + Vector3.right]);
+            }
+            if (_gameField.FieldCells.ContainsKey(cellCoordinate + Vector3.left))
+            {
+                fieldCell.AddNeighborCell(_gameField.FieldCells[cellCoordinate + Vector3.left]);
+            }
+            if (_gameField.FieldCells.ContainsKey(cellCoordinate + Vector3.forward))
+            {
+                fieldCell.AddNeighborCell(_gameField.FieldCells[cellCoordinate + Vector3.forward]);
+            }
+            if (_gameField.FieldCells.ContainsKey(cellCoordinate + Vector3.back))
+            {
+                fieldCell.AddNeighborCell(_gameField.FieldCells[cellCoordinate + Vector3.back]);
             }
         }
     }
 
-    public void initializeUnit()
+    private void InitializeUnits()
     {
         if (_maleUnitPrefab != null)
         {
-            Vector3 cordinate;
+            Vector3 coordinate;
             Vector3 temp = new Vector3(0f, GameFieldData.CharacterDiff, 0f);
 
-            for (int i = 0; i < _commonParam.UnitNum; i++)
+            for (int i = 0; i < GameSettingParam.UnitNum; i++)
             {
-                cordinate = new Vector3(i, GameFieldData.CharacterDiff, 0f);
-                Unit playerUnit = _unitSpawner.SpawnUnit(cordinate, Quaternion.identity, UnitSpawner.UnitType.Male);
-                if (_gameField.FieldCells.ContainsKey(cordinate - temp)) {
-                    FieldCell cell = _gameField.FieldCells[cordinate - temp];
-                    
-                    int realAttackVal = PlayerUnitAttackVal + (int)Random.Range((-1 * RandomVal), (RandomVal)); /* -5～5の間にしたい */
-                    int  realDefenseVal = PlayerUnitDefenseVal + (int)Random.Range((-1 * RandomVal), (RandomVal));
+                coordinate = new Vector3(i, GameFieldData.CharacterDiff, 0f);
+                Unit playerUnit = _unitSpawner.SpawnUnit(coordinate, Quaternion.identity, UnitSpawner.UnitType.Male);
 
-                    playerUnit.Initialize("Player"+i.ToString(), 100f, realAttackVal, realDefenseVal, 5, 1, Unit.Team.Player, cell);
-                    _gameField.PlayerUnits.Add(playerUnit);
-                }
-            }
-            for (int i = 0; i < _commonParam.UnitNum; i++)
-            {
-                cordinate = new Vector3(FieldWidth - 1 - i, GameFieldData.CharacterDiff, FieldLength - 1);
-                Unit enemyUnit = _unitSpawner.SpawnUnit(cordinate, new Quaternion(0,180,0,0), UnitSpawner.UnitType.Female);
-                if (_gameField.FieldCells.ContainsKey(cordinate - temp))
+                if (!_gameField.FieldCells.TryGetValue(coordinate - temp, out var cell))
                 {
-                    FieldCell cell = _gameField.FieldCells[cordinate - temp];
-
-                    int realAttackVal = _enemyAttackNum + (int)Random.Range((-1 * RandomVal), (RandomVal));
-                    int realDefenseVal = EnemyUnitDefenseVal + (int)Random.Range((-1 * RandomVal), (RandomVal));
-                    
-                    enemyUnit.Initialize("Enemy" + i.ToString(), 100f, realAttackVal, realDefenseVal, 5, 1, Unit.Team.Enemy, cell);
-                    _gameField.EnemyUnits.Add(enemyUnit);
+                    continue;
                 }
+
+                cell = _gameField.FieldCells[coordinate - temp];
+
+                int realAttackVal = PlayerUnitAttackVal + (int)Random.Range((-1 * RandomVal), (RandomVal)); /* -5～5の間にしたい */
+                int realDefenseVal = PlayerUnitDefenseVal + (int)Random.Range((-1 * RandomVal), (RandomVal));
+
+                playerUnit.Initialize($"Player{i}", UnitHpVal, realAttackVal, realDefenseVal, UnitMoveVal, AttackRangeVal, Unit.Team.Player, cell, _unitController);
+                _gameField.PlayerUnits.Add(playerUnit);
+
+            }
+            for (int i = 0; i < GameSettingParam.UnitNum; i++)
+            {
+                coordinate = new Vector3(GameFieldData.GameFieldWidth - 1 - i, GameFieldData.CharacterDiff, GameFieldData.GameFieldLength - 1);
+                Unit enemyUnit = _unitSpawner.SpawnUnit(coordinate, new Quaternion(0, 180, 0, 0), UnitSpawner.UnitType.Female);
+
+                if (!_gameField.FieldCells.TryGetValue(coordinate - temp, out var cell))
+                {
+                    continue;
+                }
+
+                cell = _gameField.FieldCells[coordinate - temp];
+
+                int realAttackVal = _enemyAttackNum + (int)Random.Range((-1 * RandomVal), (RandomVal));
+                int realDefenseVal = EnemyUnitDefenseVal + (int)Random.Range((-1 * RandomVal), (RandomVal));
+
+                enemyUnit.Initialize($"Enemy{i}", UnitHpVal, realAttackVal, realDefenseVal, UnitMoveVal, AttackRangeVal, Unit.Team.Enemy, cell, _unitController);
+                _gameField.EnemyUnits.Add(enemyUnit);
             }
         }
     }
 
-    public void FinishGame(Unit.Team winTeam)
+    private void FinishGame(Unit.Team winTeam)
     {
         _uiPresenter.SetGameFinishText(winTeam);
         Invoke(nameof(InvokeName.RestartScene), 3.0f); // 1.5秒後にRestartSceneを実行

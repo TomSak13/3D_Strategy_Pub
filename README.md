@@ -86,8 +86,6 @@
 | ゲームエンジン | Unity | 2021.3.27f1 |
 | ビルド環境 | Visual Studio | Microsoft Visual Studio Community 2019 |  
 
-- 上記の環境で、下記のアセットのフォルダをAssetフォルダ直下に入れることで動作します。
-https://assetstore.unity.com/packages/3d/characters/humanoids/rpg-tiny-hero-duo-pbr-polyart-225148?locale=ja-JP
 
 ## 設計
 
@@ -115,4 +113,9 @@ https://assetstore.unity.com/packages/3d/characters/humanoids/rpg-tiny-hero-duo-
 
 - ユニット素材
   - https://assetstore.unity.com/packages/3d/characters/humanoids/rpg-tiny-hero-duo-pbr-polyart-225148?locale=ja-JP
+  
+- UniRx
+  - https://github.com/neuecc/UniRx/tree/master
+  [こちら](/project/Assets/Plugins/UniRx)に配置しており、ライセンスもこちらを参照のこと
+  
 

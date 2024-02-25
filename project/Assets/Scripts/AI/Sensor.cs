@@ -5,19 +5,14 @@ public class Sensor
 {
     private GameFieldData _field;
 
-    public Sensor()
-    {
-
-    }
-
-    public void Initialize(GameFieldData field)
+    public Sensor(GameFieldData field)
     {
         _field = field;
     }
 
     private Unit SeekNeighborUnitFromList(List<Unit> unitList, Unit targetUnit)
     {
-        Unit retUnit = null;
+        Unit retUnit = unitList[0];
         float diff = float.MaxValue;
 
         foreach (var unit in unitList)
@@ -42,7 +37,7 @@ public class Sensor
         return true;
     }
 
-    public List<Unit> GetAttackableUnits(Unit unit)
+    public Unit[] GetAttackableUnits(Unit unit)
     {
         List<Unit> AttackableUnits = new List<Unit>();
         List<Unit> targetUnits;
@@ -64,7 +59,7 @@ public class Sensor
             }
         }
 
-        return AttackableUnits;
+        return AttackableUnits.ToArray();
     }
 
     public bool IsInAttackableRangeForCell(Unit attackCharacter, Unit defenseCharacter, FieldCell cell)
@@ -83,7 +78,7 @@ public class Sensor
     /// <param name="unit"></param>
     /// <param name="cell"></param>
     /// <returns></returns>
-    public List<Unit> GetAttacakbleUnitAfterMoved(Unit unit, FieldCell cell)
+    public Unit[] GetAttacakbleUnitAfterMoved(Unit unit, FieldCell cell)
     {
         List<Unit> AttackableUnits = new List<Unit>();
         List<Unit> targetUnits;
@@ -105,7 +100,7 @@ public class Sensor
             }
         }
 
-        return AttackableUnits;
+        return AttackableUnits.ToArray();
     }
 
     /// <summary>
@@ -127,5 +122,4 @@ public class Sensor
 
         return SeekNeighborUnitFromList(targetList, targetUnit);
     }
-
 }

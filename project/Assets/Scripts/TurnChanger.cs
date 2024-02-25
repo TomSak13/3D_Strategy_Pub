@@ -7,47 +7,23 @@ using UnityEngine;
 /// </summary>
 public class TurnChanger : MonoBehaviour
 {
-    [SerializeField] private UIPresenter _uiPresenter;
+    [SerializeField] private UIPresenter _uiPresenter = default!;
 
-    private GameFieldData _field;
-    private bool _isTurnChanged;
+    [SerializeField] private GameFieldData _field = default!;
 
-    public event Action TurnChangeFinishedEvent;
-
-    private void Update()
-    {
-        if (_field != null)
-        {
-            if (_field.PlayerUnits.Count == 0 || _field.EnemyUnits.Count == 0)
-            {
-                return; /* ゲーム終了。終了処理はMetaAIが行う */
-            }
-        }
-
-        if (_isTurnChanged)
-        {
-            if (_field.CurrentTurn == GameFieldData.Turn.PlayerTurn)
-            {
-                _field.CurrentTurn = GameFieldData.Turn.EnemyTurn;
-            }
-            else
-            {
-                _field.CurrentTurn = GameFieldData.Turn.PlayerTurn;
-            }
-            _isTurnChanged = false;
-            StartCoroutine(TurnStart(_field.CurrentTurn));
-        }
-    }
+    public event Action TurnChangeFinishedEvent = default!;
 
     IEnumerator TurnStart(GameFieldData.Turn turn)
     {
+        yield return new WaitForSeconds(1);
+
         _uiPresenter.SetTurnStartText(turn);
 
         yield return new WaitForSeconds(1);
 
-        _uiPresenter.UnDispTurnText();
+        _uiPresenter.UnDisplayTurnText();
 
-        TurnChangeFinishedEvent.Invoke();
+        TurnChangeFinishedEvent?.Invoke();
     }
 
     IEnumerator TurnEnd(GameFieldData.Turn turn)
@@ -56,14 +32,15 @@ public class TurnChanger : MonoBehaviour
 
         yield return new WaitForSeconds(1);
 
-        _uiPresenter.UnDispTurnText();
+        _uiPresenter.UnDisplayTurnText();
 
         ChangeTurn();
+
+        yield return StartCoroutine(TurnStart(_field.CurrentTurn));
     }
 
     public void Initialize(GameFieldData field)
     {
-        _isTurnChanged = false;
         _field = field;
     }
 
@@ -74,12 +51,19 @@ public class TurnChanger : MonoBehaviour
 
     public void SendStartTurn()
     {
-        /* ゲーム開始時のみ呼ばれる。初期状態は敵ターンとなっており、ChangeTurnで味方ターンに変ええることでターンを開始 */
-        _isTurnChanged = true;
+        _field!.CurrentTurn = GameFieldData.Turn.PlayerTurn;
+        StartCoroutine(TurnStart(_field.CurrentTurn));
     }
 
     private void ChangeTurn()
     {
-        _isTurnChanged = true;
+        if (_field?.CurrentTurn == GameFieldData.Turn.PlayerTurn)
+        {
+            _field!.CurrentTurn = GameFieldData.Turn.EnemyTurn;
+        }
+        else
+        {
+            _field!.CurrentTurn = GameFieldData.Turn.PlayerTurn;
+        }
     }
 }

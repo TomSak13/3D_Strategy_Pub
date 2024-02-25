@@ -1,119 +1,33 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 
 public class Battle : MonoBehaviour
 {
+    private const float RandomRate = 0.25f;
+    private const float MinAttackVal = 5f;
     public enum BattleState
     {
         None,
-        Start,
         Attack,
-        CounterAttack,
-        Finished
+        CounterAttack
     }
 
-    [SerializeField] private UIPresenter _uiPresenter;
-    [SerializeField] private GameFieldData _field;
-    [SerializeField] private MainCamera _camera;
+    [SerializeField] private UIPresenter _uiPresenter = default!;
+    [SerializeField] private GameFieldData _field = default!;
+    [SerializeField] private MainCamera _camera = default!;
 
-    public const float RandomRate = 0.25f;
-    private Unit _attackCharacter;
-    private Unit _defenseCharacter;
+    private Unit _attackCharacter = default!;
+    private Unit _defenseCharacter = default!;
 
-    private BattleState _state;
+    public BattleState State { get; private set; }
 
-    public BattleState State { get => _state; }
 
     private void Start()
     {
-        _attackCharacter = null;
-        _defenseCharacter = null;
-
-        _state = BattleState.None;
+        State = BattleState.None;
     }
 
-    private void Update()
-    {
-        if (_uiPresenter == null)
-        {
-            Debug.Log("attach objs are none:" + System.Reflection.MethodBase.GetCurrentMethod().Name);
-            return;
-        }
-        if (_attackCharacter == null || _defenseCharacter == null)
-        {
-            return;
-        }
-
-        if (_state == BattleState.None)
-        {
-            return; /* 開始まで待つ */
-        }
-        if (_attackCharacter.IsInAttackAnim() || _defenseCharacter.IsInAttackAnim())
-        {
-            return; /* アニメーション中は制御を止める */
-        }
-
-        _uiPresenter.UpdateBattleResult(_attackCharacter, _defenseCharacter);
-
-        switch (_state)
-        {
-            case BattleState.Start:
-
-                _state = BattleState.Attack;
-                break;
-            case BattleState.Attack:
-                if (_camera != null)
-                {
-                    _camera.MoveCursor(_attackCharacter);
-                }
-                _attackCharacter.StartAttackAnimation(_defenseCharacter);
-                
-                _defenseCharacter.CurrentHp -= CalcDamage(_attackCharacter, _defenseCharacter);
-
-                if (_defenseCharacter.CurrentHp > 0 && IsInAttackRange(_field, _defenseCharacter, _attackCharacter) && _defenseCharacter.State != Unit.ActionState.Defense)
-                {
-                    _state = BattleState.CounterAttack; /* 攻撃範囲内にいれば反撃 */
-                }
-                else
-                {
-                    _state = BattleState.Finished;
-                }
-                _defenseCharacter.StartDamagedAnimation(_attackCharacter);
-                break;
-            case BattleState.CounterAttack:
-                if (_camera != null)
-                {
-                    _camera.MoveCursor(_defenseCharacter);
-                }
-                _defenseCharacter.StartAttackAnimation(_attackCharacter);
-                
-                _attackCharacter.CurrentHp -= CalcDamage(_defenseCharacter, _attackCharacter);
-                
-
-                _state = BattleState.Finished;
-
-                _attackCharacter.StartDamagedAnimation(_defenseCharacter);
-                break;
-            case BattleState.Finished:
-                if (_attackCharacter.CurrentHp <= 0)
-                {
-                    DefeatUnit(_field, _attackCharacter);
-                }
-                if (_defenseCharacter.CurrentHp <= 0)
-                {
-                    DefeatUnit(_field, _defenseCharacter);
-                }
-
-                _attackCharacter = null;
-                _defenseCharacter = null;
-
-                _state = BattleState.None;
-                break;
-            default:
-                break;
-        }
-    }
-
-    public void DefeatUnit(GameFieldData field, Unit unit)
+    private void DefeatUnit(GameFieldData field, Unit unit)
     {
         if (field == null || unit == null)
         {
@@ -123,7 +37,7 @@ public class Battle : MonoBehaviour
         unit.EraseGameobj();
     }
 
-    public bool IsInAttackRange(GameFieldData field, Unit attackCharacter, Unit defenseCharacter)
+    private bool IsInAttackRange(GameFieldData field, Unit attackCharacter, Unit defenseCharacter)
     {
         if (field == null || attackCharacter == null || defenseCharacter == null)
         {
@@ -134,7 +48,7 @@ public class Battle : MonoBehaviour
         {
             for (int j = -attackCharacter.AttackRange; j <= attackCharacter.AttackRange; j++)
             {
-                if (i == 0 && j == 0) 
+                if (i == 0 && j == 0)
                 {
                     continue;
                 }
@@ -143,7 +57,7 @@ public class Battle : MonoBehaviour
                     continue;
                 }
                 Vector3 targetPosition = attackCharacter.OnCell.transform.position + (Vector3.forward * j) + (Vector3.right * i);
-                
+
                 if (targetPosition == defenseCharacter.OnCell.transform.position)
                 {
                     return true;
@@ -168,7 +82,7 @@ public class Battle : MonoBehaviour
             return false;
         }
 
-        if (!IsInAttackRange(_field ,attackCharacter, defenseCharacter))
+        if (!IsInAttackRange(_field, attackCharacter, defenseCharacter))
         {
             Debug.Log("not under AttackRange");
             return false;
@@ -188,13 +102,12 @@ public class Battle : MonoBehaviour
             return 0;
         }
 
-        float realAttackVal;
-        realAttackVal = (attackCharacter.Attack + attackCharacter.OnCell.Effect.AttackEffect) -
+        float realAttackVal = (attackCharacter.Attack + attackCharacter.OnCell.Effect.AttackEffect) -
                          (defenseCharacter.Defense + defenseCharacter.OnCell.Effect.DefenseEffect);
 
         if (realAttackVal <= 0)
         {
-            realAttackVal = 5f;
+            realAttackVal = MinAttackVal;
         }
 
         float randVal = Random.Range((-1 * RandomRate * realAttackVal), (RandomRate * realAttackVal));
@@ -203,7 +116,7 @@ public class Battle : MonoBehaviour
 
         if (defenseCharacter.State == Unit.ActionState.Defense)
         {
-            realDamage = realDamage / 2; /* 防御時はダメージを1/2にする */
+            realDamage /= 2; /* 防御時はダメージを1/2にする */
         }
 
         return realDamage;
@@ -211,6 +124,70 @@ public class Battle : MonoBehaviour
 
     public void StartBattle()
     {
-        _state = BattleState.Start;
+        State = BattleState.Attack;
+        StartAttack(_attackCharacter, _defenseCharacter);
+        _uiPresenter.UpdateBattleResult(_attackCharacter, _defenseCharacter);
+    }
+
+    private void StartAttack(Unit attackUnit, Unit defenseUnit)
+    {
+        if (_camera != null)
+        {
+            _camera.MoveCursor(attackUnit);
+        }
+        attackUnit.StartAttackAnimation(defenseUnit);
+
+        defenseUnit.StartDamagedAnimation(attackUnit);
+    }
+
+    public void FinishAttack()
+    {
+        switch (State)
+        {
+            case BattleState.Attack:
+                _defenseCharacter.CurrentHp -= CalcDamage(_attackCharacter, _defenseCharacter);
+                if (_defenseCharacter.CurrentHp > 0 && IsInAttackRange(_field, _defenseCharacter, _attackCharacter) && _defenseCharacter.State != Unit.ActionState.Defense)
+                {
+                    State = BattleState.CounterAttack; /* 攻撃範囲内にいれば反撃 */
+                    StartAttack(_defenseCharacter, _attackCharacter);
+                }
+                else
+                {
+                    FinishBattle();
+                }
+                break;
+            case BattleState.CounterAttack:
+                _attackCharacter.CurrentHp -= CalcDamage(_defenseCharacter, _attackCharacter);
+                FinishBattle();
+                break;
+            default:
+                break;
+        }
+
+        _uiPresenter.UpdateBattleResult(_attackCharacter, _defenseCharacter);
+    }
+
+    private void FinishBattle()
+    {
+        if (_attackCharacter.CurrentHp <= 0)
+        {
+            DefeatUnit(_field, _attackCharacter);
+        }
+        if (_defenseCharacter.CurrentHp <= 0)
+        {
+            DefeatUnit(_field, _defenseCharacter);
+        }
+
+        State = BattleState.None;
+        StartCoroutine(NotifyFinishBattle());
+    }
+
+    IEnumerator NotifyFinishBattle()
+    {
+        yield return new WaitForSeconds(0.5f); // 結果をユーザーに見せるため待つ
+
+        _attackCharacter.NotifyFinishAction();
+
+        yield return null;
     }
 }

@@ -1,19 +1,18 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class CellSpawner
 {
-    private GameObject _fieldPrefab;
+    private FieldCell _fieldPrefab;
 
-    public CellSpawner(GameObject fieldPrefab)
+    public CellSpawner(FieldCell fieldPrefab)
     {
         _fieldPrefab = fieldPrefab;
     }
 
-    public FieldCell SpawnCell(Vector3 cordinate)
+    public FieldCell SpawnCell(Vector3 coordinate)
     {
-        GameObject gameObj;
-        gameObj = GameObject.Instantiate(_fieldPrefab, cordinate, Quaternion.identity);
-        FieldCell cell = gameObj.GetComponent<FieldCell>();
+        FieldCell cell;
+        cell = GameObject.Instantiate<FieldCell>(_fieldPrefab, coordinate, Quaternion.identity);
 
         return cell;
     }

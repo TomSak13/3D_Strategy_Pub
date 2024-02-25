@@ -1,12 +1,11 @@
-﻿using UnityEngine;
-using UnityEngine.SceneManagement;
+﻿using UnityEngine.SceneManagement;
 
-public class SceneChanger : MonoBehaviour
+public static class SceneChanger
 {
-    public string GameScene = "SampleScene";
+    public const string GameScene = "SampleScene";
 
-    public void LoadGameScene()
+    public static void LoadGameScene(string gameScene)
     {
-        SceneManager.LoadScene(GameScene);
+        SceneManager.LoadScene(gameScene);
     }
 }

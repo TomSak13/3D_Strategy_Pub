@@ -5,41 +5,40 @@ using UnityEngine.UI;
 
 public class TitleDataPresenter : MonoBehaviour
 {
-    
+    /// <summary>
+    /// model
+    /// </summary>
+    [SerializeField] private TitleData titleData = default!;
 
-    /* model */
-    [SerializeField] private TitleData titleData;
+    /// <summary>
+    /// view
+    /// </summary>
+    [SerializeField] private Button _gameStartButton = default!;
+    [SerializeField] private GameObject _gameStartSelectedMarker = default!;
+    [SerializeField] private Button _difficultySettingButton = default!;
+    [SerializeField] private GameObject _difficultySettingSelectedMarker = default!;
 
-    /* view */
-    [SerializeField] private Button _gameStartButton;
-    [SerializeField] private GameObject _gameStartSelectedMarker;
-    [SerializeField] private Button _difficultySettingButton;
-    [SerializeField] private GameObject _difficultySettingSelectedMarker;
+    [SerializeField] private Button _difficultyEasyButton = default!;
+    [SerializeField] private GameObject _difficultyEasySelectedMarker = default!;
+    [SerializeField] private Button _difficultyNormalButton = default!;
+    [SerializeField] private GameObject _difficultyNormalSelectedMarker = default!;
+    [SerializeField] private Button _difficultyDifficultButton = default!;
+    [SerializeField] private GameObject _difficultyDifficultSelectedMarker = default!;
 
-    [SerializeField] private Button _difficultyEasyButton;
-    [SerializeField] private GameObject _difficultyEasySelectedMarker;
-    [SerializeField] private Button _difficultyNormalButton;
-    [SerializeField] private GameObject _difficultyNormalSelectedMarker;
-    [SerializeField] private Button _difficultyDifficultButton;
-    [SerializeField] private GameObject _difficultyDifficultSelectedMarker;
+    [SerializeField] private TMP_Dropdown _unitNumDropDown = default!;
 
-    [SerializeField] private TMP_Dropdown _unitNumDropDown;
+    [SerializeField] private GameObject _difficultyPanel = default!;
+    private Dictionary<Button, GameObject> _menu = default!;
 
-    [SerializeField] private GameObject _difficultyPanel;
-    private Dictionary<Button, GameObject> _menu;
-
-    [SerializeField] private SceneChanger _sceneChanger;
-
-    // Start is called before the first frame update
     private void Start()
     {
         if (titleData != null)
         {
-            titleData.TitleDataChanged += OnTitleDatahChanged;
+            titleData.TitleDataChanged += OnTitleDataChanged;
         }
 
         _menu = new Dictionary<Button, GameObject>
-        { 
+        {
             {_gameStartButton, _gameStartSelectedMarker},
             {_difficultySettingButton, _difficultySettingSelectedMarker},
             {_difficultyEasyButton, _difficultyEasySelectedMarker},
@@ -57,17 +56,7 @@ public class TitleDataPresenter : MonoBehaviour
     {
         if (titleData != null)
         {
-            titleData.TitleDataChanged -= OnTitleDatahChanged;
-        }
-    }
-
-    private void StartGame()
-    {
-        if (_sceneChanger != null)
-        {
-            int unitNum = int.Parse(_unitNumDropDown.options[_unitNumDropDown.value].text);
-            titleData.SetCommonParamUnitNum(unitNum);
-            _sceneChanger.LoadGameScene();
+            titleData.TitleDataChanged -= OnTitleDataChanged;
         }
     }
 
@@ -114,17 +103,17 @@ public class TitleDataPresenter : MonoBehaviour
 
         /* UI表示している階層の更新 */
         TitleData.UiHierarchy currentHierarchy = titleData.CurrentHierarchy;
-        /* TODO: ここでviewのヒエラルキー更新 */
         if (currentHierarchy == TitleData.UiHierarchy.StartGame)
         {
-            StartGame();
+            int unitNum = int.Parse(_unitNumDropDown.options[_unitNumDropDown.value].text);
+            titleData.StartGame(unitNum);
             return; /* Game Start */
         }
-        else if(currentHierarchy == TitleData.UiHierarchy.Difficulty)
+        else if (currentHierarchy == TitleData.UiHierarchy.Difficulty)
         {
             _difficultyPanel.SetActive(true);
         }
-        else 
+        else
         {
             _difficultyPanel.SetActive(false);
         }
@@ -134,7 +123,7 @@ public class TitleDataPresenter : MonoBehaviour
         if (_menu.ContainsKey(selectCombo.ContentButton))
         {
             /* いったんすべて非表示 */
-            foreach(var selectObject in _menu.Values)
+            foreach (var selectObject in _menu.Values)
             {
                 if (selectObject != null)
                 {
@@ -146,7 +135,7 @@ public class TitleDataPresenter : MonoBehaviour
         }
     }
 
-    public void OnTitleDatahChanged()
+    public void OnTitleDataChanged()
     {
         UpdateView();
     }

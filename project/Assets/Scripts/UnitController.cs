@@ -4,17 +4,31 @@ using UnityEngine;
 /// <summary>
 /// ユニットを操作する。Presenter(Controller)の役割
 /// </summary>
-public class UnitController : MonoBehaviour
+public class UnitController
 {
-    [SerializeField] private Battle _battle;
+    private Battle _battle;
 
-    private void Update()
+    private CharacterAI _characterAI = default!;
+
+    public UnitController(Battle battle)
     {
-        if (_battle == null)
-        {
-            Debug.Log("attach objs are none:" + System.Reflection.MethodBase.GetCurrentMethod().Name);
-            return;
-        }
+        _battle = battle;
+    }
+
+    public void ActStart(ActionBase action, CharacterAI characterAI)
+    {
+        _characterAI = characterAI;
+        action.Execute(this);
+    }
+
+    public void CallbackFinishAct(Unit unit)
+    {
+        _characterAI.FinishAct(unit);
+    }
+
+    public void CallbackFinishAttack()
+    {
+        _battle.FinishAttack();
     }
 
     /// <summary>
@@ -26,29 +40,24 @@ public class UnitController : MonoBehaviour
     /// <param name="route"></param>
     /// <param name="isAnime"></param>
     /// <returns></returns>
-    public bool MoveUnit(GameFieldData field, Unit unit, FieldCell destinationCell, List<RouteSearchNode>[] route,  bool isAnime = true)
+    public void MoveUnit(GameFieldData field, Unit unit, FieldCell destinationCell, RouteSearchNode[][] route, bool isAnime = true)
     {
-        bool ret = false;
         if (destinationCell == null)
         {
             Debug.Log("destinationCell null:");
         }
 
-        if (field.FieldCells.ContainsValue(destinationCell))
+        if (field.FieldCells.ContainsKey(destinationCell!.gameObject.transform.position))
         {
             List<FieldCell> routeList = NavigationAI.GetRoute(destinationCell, route);
-            
-            unit.MovePosition(destinationCell, field, routeList, isAnime);
-            ret = true;
+
+            unit.MovePosition(destinationCell, routeList, isAnime);
         }
         else
         {
             Debug.Log("UnMovable position:" + destinationCell.transform.position);
         }
-
-        return ret;
     }
-
 
     public void Battle(Unit attackCharacter, Unit defenseCharacter)
     {
@@ -56,10 +65,9 @@ public class UnitController : MonoBehaviour
         {
             _battle.StartBattle();
         }
-    }
-
-    public Battle.BattleState GetBattleState()
-    {
-        return _battle.State;
+        else
+        {
+            attackCharacter.NotifyFinishAction();
+        }
     }
 }

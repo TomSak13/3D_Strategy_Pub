@@ -1,43 +1,41 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
+public class TitleInputReceiver : MonoBehaviour
+{
+    [SerializeField] private TitleDataPresenter titlePresenter = default!;
 
-    public class TitleInputReceiver : MonoBehaviour
+    private List<KeyCode> _assignKeys = default!;
+
+    private void Start()
     {
-        [SerializeField] private TitleDataPresenter titlePresenter;
+        _assignKeys = new List<KeyCode>()
+    {
+        KeyCode.UpArrow,
+        KeyCode.DownArrow,
+        KeyCode.LeftArrow,
+        KeyCode.RightArrow,
+        KeyCode.Return,
+        KeyCode.Escape
+    };
+    }
 
-
-        private List<KeyCode> _asignKeys;
-
-        private void Start()
+    private void Update()
+    {
+        if (titlePresenter == null)
         {
-            _asignKeys = new List<KeyCode>()
-        {
-            KeyCode.UpArrow,
-            KeyCode.DownArrow,
-            KeyCode.LeftArrow,
-            KeyCode.RightArrow,
-            KeyCode.Return,
-            KeyCode.Escape
-        };
+            return;
         }
 
-        private void Update()
+        if (Input.anyKeyDown)
         {
-            if (titlePresenter == null)
+            foreach (var inputAssignKey in _assignKeys)
             {
-                return;
-            }
-
-            if (Input.anyKeyDown)
-            {
-                foreach (var inputAsignKey in _asignKeys)
+                if (Input.GetKeyDown(inputAssignKey))
                 {
-                    if (Input.GetKeyDown(inputAsignKey))
-                    {
-                        titlePresenter.InputKey(inputAsignKey);
-                    }
+                    titlePresenter.InputKey(inputAssignKey);
                 }
             }
         }
     }
+}

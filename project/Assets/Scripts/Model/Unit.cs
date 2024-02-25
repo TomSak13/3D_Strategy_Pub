@@ -1,10 +1,12 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Unit : MonoBehaviour
 {
-    public enum Team {
+    public enum Team
+    {
         Player,
         Enemy
     }
@@ -29,48 +31,36 @@ public class Unit : MonoBehaviour
     private static readonly int _damagedAnimatorHash = Animator.StringToHash("Damaged");
     private static readonly int _defenseAnimatorHash = Animator.StringToHash("Defense");
 
-    private string _name;
     private float _maxHp;
-    private float _currentHp;
-    private float _attack;
-    private float _defense;
-    private int _move;
-    private int _attackRange;
 
-    private bool _isFinishedTurn;
-    private FieldCell _onCell;
-    private Team _unitTeam;
-    private ActionState _state;
-    private ActControlState _controlState;
+    private Animator _animator = default!;
+    private AttackAnimationBehaviour _attackAnimationBehaviour = default!;
 
-    private Animator _animator;
-    private AttackAnimationBehaviour _attackAnimationBehaviour;
-    private bool _isinRunAnim;
+    private UnitController _unitController = default!;
 
-    public string Name { get => _name; set => _name = value; }
-    public float CurrentHp { get => _currentHp; set => _currentHp = value; }
-    public float Attack { get => _attack; }
-    public float Defense { get => _defense; }
-    public int Move { get => _move; }
-    public int AttackRange { get => _attackRange; }
-    public FieldCell OnCell { get => _onCell; }
-    public Team UnitTeam { get => _unitTeam; }
-    public ActionState State { get => _state; set => _state = value; }
-
-    public ActControlState ControlState { get => _controlState; set => _controlState = value; }
-
-    public bool IsInRunAnim { get => _isinRunAnim; }
-    public bool IsTurnFinished { get => _isFinishedTurn; }
+    public string Name { get; set; } = default!;
+    public float CurrentHp { get; set; }
+    public float Attack { get; private set; }
+    public float Defense { get; private set; }
+    public int Move { get; private set; }
+    public int AttackRange { get; private set; }
+    public FieldCell OnCell { get; private set; } = default!;
+    public Team UnitTeam { get; private set; }
+    public ActionState State { get; set; }
+    public ActControlState ControlState { get; set; }
+    public bool IsInRunAnim { get; private set; }
+    public bool IsTurnFinished { get; private set; }
 
     public float GetCurrentHpRatio()
     {
-        return (_currentHp/ _maxHp);
+        return (CurrentHp / _maxHp);
     }
 
     public void EraseGameobj()
     {
         gameObject.SetActive(false);
-        _onCell.RemoveUnit();
+        OnCell.RemoveUnit();
+        Destroy(this);
     }
     public bool IsInAttackAnim()
     {
@@ -83,7 +73,7 @@ public class Unit : MonoBehaviour
         {
             return;
         }
-        
+
         transform.rotation = Quaternion.LookRotation(opponent.transform.position - transform.position, Vector3.up);
     }
 
@@ -92,7 +82,7 @@ public class Unit : MonoBehaviour
     /// </summary>
     public void StartDamagedAnimation(Unit opponent)
     {
-        if (_state != ActionState.Defense)
+        if (State != ActionState.Defense)
         {
             _animator.SetTrigger(_damagedAnimatorHash);
         }
@@ -109,9 +99,8 @@ public class Unit : MonoBehaviour
         {
             return;
         }
+
         RotateToOpponent(opponent);
-
-
         _attackAnimationBehaviour.StartAnimation();
         _animator.SetTrigger(_attackAnimatorHash);
     }
@@ -122,8 +111,9 @@ public class Unit : MonoBehaviour
         {
             return;
         }
-        _isinRunAnim = true;
-        _animator.SetBool(_runAnimatorHash,true);
+
+        IsInRunAnim = true;
+        _animator.SetBool(_runAnimatorHash, true);
     }
 
     private void StopRunAnimation()
@@ -132,69 +122,78 @@ public class Unit : MonoBehaviour
         {
             return;
         }
-        _isinRunAnim = false;
+
+        IsInRunAnim = false;
         _animator.SetBool(_runAnimatorHash, false);
     }
 
     public void InitializeTurn()
     {
-        if (_state == ActionState.Defense) // 防御戦略時は次のターン開始時にHP５％回復
+        if (State == ActionState.Defense) // 防御戦略時は次のターン開始時にHP５％回復
         {
             int recoverHp = (int)(_maxHp * 0.05);
-            _currentHp += recoverHp;
-            if (_currentHp >= _maxHp)
+            CurrentHp += recoverHp;
+            if (CurrentHp >= _maxHp)
             {
-                _currentHp = _maxHp;
+                CurrentHp = _maxHp;
             }
         }
-        _state = ActionState.None;
-        _isFinishedTurn = false;
+
+        State = ActionState.None;
+        IsTurnFinished = false;
     }
 
     public void EndTurn()
     {
-        _isFinishedTurn = true;
+        IsTurnFinished = true;
     }
 
     public void InDefense()
     {
-        _state = ActionState.Defense;
+        State = ActionState.Defense;
+        NotifyFinishAction();
     }
 
-    public void Initialize(string name, float maxHp, float attack, float defense, int move, int attackRange, Team team, FieldCell fieldCell)
+    public void Initialize(string name, float maxHp, float attack, float defense, int move, int attackRange, Team team, FieldCell fieldCell, UnitController unitController)
     {
-        _name = name;
+        Name = name;
         _maxHp = maxHp;
-        _currentHp = _maxHp;
-        _attack = attack;
-        _defense = defense;
-        _move = move;
-        _attackRange = attackRange;
+        CurrentHp = _maxHp;
+        Attack = attack;
+        Defense = defense;
+        Move = move;
+        AttackRange = attackRange;
 
-        _state = ActionState.None;
-        _controlState = ActControlState.None;
-        _isFinishedTurn = false;
+        State = ActionState.None;
+        ControlState = ActControlState.None;
+        IsTurnFinished = false;
 
-        _unitTeam = team;
+        _unitController = unitController;
 
-        _onCell = fieldCell;
-        if (_onCell != null)
+        UnitTeam = team;
+
+        OnCell = fieldCell;
+        if (OnCell != null)
         {
-            _onCell.SetOnUnit(this);
-        }
-        _animator = GetComponent<Animator>();
-        if (_animator != null) {
-            _attackAnimationBehaviour = _animator.GetBehaviour<AttackAnimationBehaviour>();
-            _attackAnimationBehaviour.Initialize();
+            OnCell.SetOnUnit(this);
         }
 
-        _isinRunAnim = false;
+        _animator = GetComponent<Animator>();
+        if (_animator != null)
+        {
+            _attackAnimationBehaviour = _animator.GetBehaviour<AttackAnimationBehaviour>();
+            _attackAnimationBehaviour.Initialize(this);
+        }
+
+        IsInRunAnim = false;
     }
 
     /* 移動アニメーション */
     IEnumerator MovePositionAnim(List<FieldCell> routeList)
     {
         Vector3 delta;
+
+        StartRunAnimation();
 
         foreach (FieldCell route in routeList)
         {
@@ -205,6 +204,7 @@ public class Unit : MonoBehaviour
                     transform.position = Vector3.MoveTowards(transform.position,
                                                              new Vector3(route.transform.position.x, transform.position.y, transform.position.z),
                                                              10f * Time.deltaTime); // (現在地, 目標地, 速度)
+
                     /* 進行方向を向く */
                     delta = new Vector3(route.transform.position.x - transform.position.x, 0, 0);
                     if (delta.magnitude != 0)
@@ -234,28 +234,38 @@ public class Unit : MonoBehaviour
         }
 
         StopRunAnimation();
+        NotifyFinishAction();
 
         yield return null;
     }
 
-    public void MovePosition(FieldCell destinationCell, GameFieldData field, List<FieldCell> routeList, bool isAnim)
+    public void MovePosition(FieldCell destinationCell, List<FieldCell> routeList, bool isAnim)
     {
-        /* モック用:ナビゲーションAIは後々実装のため、目的地のセルへ移動させるだけ */
         /* 移動アニメーション */
         if (isAnim)
         {
-            StartRunAnimation();
             StartCoroutine(MovePositionAnim(routeList));
         }
         else
         {
             transform.position = destinationCell.transform.position + (Vector3.up * GameFieldData.CharacterDiff);
+            NotifyFinishAction();
         }
         /* 配置セル削除 */
-        _onCell.RemoveUnit();
+        OnCell.RemoveUnit();
 
         /* セル移動 */
-        _onCell = destinationCell;
-        _onCell.SetOnUnit(this);
+        OnCell = destinationCell;
+        OnCell.SetOnUnit(this);
+    }
+
+    public void NotifyFinishAction()
+    {
+        _unitController.CallbackFinishAct(this);
+    }
+
+    public void NotifyFinishAttack()
+    {
+        _unitController.CallbackFinishAttack();
     }
 }

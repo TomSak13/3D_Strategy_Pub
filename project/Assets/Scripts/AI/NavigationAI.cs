@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class NavigationAI
@@ -9,34 +10,36 @@ public class NavigationAI
     /// <param name="goalCell"></param>
     /// <param name="routeNode"></param>
     /// <returns></returns>
-    public static List<FieldCell> GetRoute(FieldCell goalCell, List<RouteSearchNode>[] routeNode)
+    public static List<FieldCell> GetRoute(FieldCell goalCell, RouteSearchNode[][] routeNode)
     {
-        List<FieldCell> routeList = new List<FieldCell>();
-        int targetNodeIndex;
-        int targetListIndex;
-        RouteSearchNode node = null;
-
         if (routeNode == null)
         {
-            return null;
+            throw new System.InvalidOperationException("routeNode field is null.");
         }
 
+        int targetNodeIndex;
+        int targetListIndex = 0;
+        bool isFoundRoute = false;
         for (targetNodeIndex = 0; targetNodeIndex < (routeNode.Length); targetNodeIndex++)
         {
-            for (targetListIndex = 0; targetListIndex < routeNode[targetNodeIndex].Count; targetListIndex++)
+            for (targetListIndex = 0; targetListIndex < routeNode[targetNodeIndex].Length; targetListIndex++)
             {
                 if (routeNode[targetNodeIndex][targetListIndex].Cell == goalCell)
                 {
-                    node = routeNode[targetNodeIndex][targetListIndex]; /* ターゲットノード発見 */
+                    /* ターゲットノード発見 */
+                    isFoundRoute = true;
                     break;
                 }
             }
 
-            if (node != null)
+            if (isFoundRoute)
             {
                 break;
             }
         }
+
+        RouteSearchNode node = routeNode[targetNodeIndex][targetListIndex];
+        List<FieldCell> routeList = new List<FieldCell>();
 
         /* 移動予定地からさかのぼる形にルートリスト変換 */
         while (node != null)
@@ -50,6 +53,24 @@ public class NavigationAI
         return routeList;
     }
 
+    public static bool IsExistMovablePosition(GameFieldData fieldData, FieldCell targetCell)
+    {
+        if (fieldData == null)
+        {
+            throw new System.InvalidOperationException("fieldData field is null or movePower <= 0.");
+        }
+
+        foreach(var cell in targetCell.NeighborCells)
+        {
+            if (cell.Movable)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// 移動可能範囲を取得
     /// </summary>
@@ -57,26 +78,19 @@ public class NavigationAI
     /// <param name="targetCell"></param>
     /// <param name="movePower"></param>
     /// <returns></returns>
-    public static List<RouteSearchNode>[] InvestigateMovablePosition(GameFieldData fieldData, FieldCell targetCell, int movePower)
+    public static RouteSearchNode[][] InvestigateMovablePosition(GameFieldData fieldData, FieldCell targetCell, int movePower)
     {
-        int needCostForGoal;
-        List<RouteSearchNode>[] routeNode;
-
-
         if (movePower <= 0 || fieldData == null)
         {
-            return null;
+            throw new System.InvalidOperationException("fieldData field is null or movePower <= 0.");
         }
 
-        routeNode = new List<RouteSearchNode>[movePower + 1];
-
-        /* needCostForGoal を計算 */
-        needCostForGoal = movePower;
+        var routeNode = new List<RouteSearchNode>[movePower + 1];
 
         /* 初期ノードを格納 */
-        RouteSearchNode startNode = new RouteSearchNode(targetCell, needCostForGoal, movePower, null);
-        routeNode[0] = new List<RouteSearchNode>();
-        routeNode[0].Add(startNode);
+        RouteSearchNode startNode = new RouteSearchNode(targetCell, movePower);
+
+        routeNode[0] = new List<RouteSearchNode> { startNode };
 
         /* ルート探索 */
         for (int i = 0; i < (routeNode.Length - 1); i++)
@@ -86,7 +100,7 @@ public class NavigationAI
             foreach (var node in routeNode[i])
             {
                 /* リスト内のノードを確認し、四近傍内の移動可能エリアリストを作成 */
-                List<RouteSearchNode> nextRouteList = node.SearchNeighbor(fieldData);
+                List<RouteSearchNode> nextRouteList = RouteSearchNode.SearchNeighbor(fieldData, node);
                 /* 次のノードを入れる用のリストに格納 */
                 routeNode[i + 1].AddRange(nextRouteList);
             }
@@ -98,15 +112,21 @@ public class NavigationAI
             }
         }
 
-        return routeNode;
+        /* 移動先がない場合はダミーのから配列を返す */
+        if (routeNode[0].Count <= 0)
+        {
+
+        }
+
+        return routeNode.Select(static x => x.ToArray()).ToArray();
     }
 
-    public static bool IsMovable(List<RouteSearchNode>[] routeNode, FieldCell targetCell)
+    public static bool IsMovable(RouteSearchNode[][] routeNode, FieldCell targetCell)
     {
         bool ret = false;
         if (routeNode == null)
         {
-            return false;
+            throw new System.InvalidOperationException("routeNode field is null.");
         }
 
         foreach (var nodes in routeNode)
@@ -116,12 +136,11 @@ public class NavigationAI
                 break;
             }
 
-            foreach(var node in nodes)
+            foreach (var node in nodes)
             {
                 if (node.Cell == targetCell)
                 {
-                    ret = true;
-                    break;
+                    return true;
                 }
             }
         }
@@ -133,25 +152,26 @@ public class NavigationAI
     /// 第一引数に入れたユニットが第二引数を目標に移動する際に、移動可能範囲内の目標に近い位置を返す
     /// </summary>
     /// <param name="unit"></param>
-    /// <param name="DestinationCell"></param>
+    /// <param name="destinationCell"></param>
     /// <param name="fieldData"></param>
+    /// <param name="route"></param>
     /// <returns></returns>
-    public static FieldCell InvestigateMovePosition(Unit unit, FieldCell DestinationCell, GameFieldData fieldData, List<RouteSearchNode>[] route)
+    public static FieldCell InvestigateMovePosition(Unit unit, FieldCell destinationCell, GameFieldData fieldData, RouteSearchNode[][] route)
     {
-        if (unit == null || DestinationCell == null || fieldData == null || route == null)
+        if (unit == null || destinationCell == null || fieldData == null || route == null)
         {
-            return null;
+            throw new System.InvalidOperationException("unit or DestinationCell or fieldData or route field is null.");
         }
-        
+
         /* 目標セルが移動可能範囲にある場合 */
-        if (IsMovable(route, DestinationCell))
+        if (IsMovable(route, destinationCell))
         {
-            return DestinationCell;
+            return destinationCell;
         }
         /* 目的地が移動不可能ならば探索 */
 
-        FieldCell targetCell = null;
-        FieldCell searchCell = DestinationCell;
+
+        FieldCell searchCell = destinationCell;
         List<FieldCell> neighborCells;
         float distance = float.MaxValue;
 
@@ -159,7 +179,7 @@ public class NavigationAI
         {
             neighborCells = searchCell.NeighborCells;
 
-            searchCell = null;
+            searchCell = null!;
             foreach (var cell in neighborCells)
             {
                 /* 前のループでの距離と比べて一番近い位置を調べる */
@@ -174,15 +194,15 @@ public class NavigationAI
             {
                 if (IsMovable(route, searchCell))
                 {
-                    targetCell = searchCell;
                     break;
                 }
             }
         }
 
+        FieldCell targetCell = searchCell!;
         if (targetCell == null)
         {
-            Debug.Log("investigate err by algorithm"); /* デバッグ用 */
+            throw new System.InvalidOperationException("investigate err by algorithm");
         }
 
         return targetCell;
@@ -199,20 +219,20 @@ public class NavigationAI
     {
         if (targetCell == null || escapeTargetCell == null || fieldData == null)
         {
-            return null;
+            throw new System.InvalidOperationException("targetCell or escapeTargetCell or fieldData field is null.");
         }
 
         FieldCell searchCell;
         List<FieldCell> neighborCells;
         float distance = 0f;
-        FieldCell farCell = null;
+        FieldCell farCell = null!;
 
         searchCell = targetCell;
         while (searchCell != null)
         {
             neighborCells = searchCell.NeighborCells;
 
-            searchCell = null;
+            searchCell = null!;
             foreach (var cell in neighborCells)
             {
                 /* 前のループでの距離と比べて一番遠い位置を調べる */
@@ -225,14 +245,19 @@ public class NavigationAI
             }
         }
 
+        if (farCell == null)
+        {
+            throw new System.InvalidOperationException("InvestigateEscapePosition err by algorithm");
+        }
+
         return farCell;
     }
 
-    private static Dictionary<FieldCell,Unit> InvestigateUnitAttackRangeCell(Unit unit, GameFieldData field)
+    private static Dictionary<FieldCell, Unit> InvestigateUnitAttackRangeCell(Unit unit, GameFieldData field)
     {
         if (field == null)
         {
-            return null;
+            throw new System.InvalidOperationException("fieldData field is null.");
         }
 
         Dictionary<FieldCell, Unit> attackRangeCell = new Dictionary<FieldCell, Unit>();
@@ -243,7 +268,7 @@ public class NavigationAI
         for (int i = 0; i < unit.AttackRange; i++)
         {
             neighborCells = searchCells.Pop().NeighborCells;
-            foreach(var cell in neighborCells)
+            foreach (var cell in neighborCells)
             {
                 if (cell.Movable)
                 {
@@ -257,35 +282,31 @@ public class NavigationAI
                 break;
             }
         }
-        
+
         return attackRangeCell;
     }
 
-    public static Dictionary<FieldCell, Unit> InvestigateAttackableCellInRoutes(List<RouteSearchNode>[] routes, List<Unit> enemys, GameFieldData field)
+    public static Dictionary<FieldCell, Unit> InvestigateAttackableCellInRoutes(RouteSearchNode[][] routes, List<Unit> enemies, GameFieldData field)
     {
         Dictionary<FieldCell, Unit> attackableCell = new Dictionary<FieldCell, Unit>();
         Dictionary<FieldCell, Unit> attackRangeCells = new Dictionary<FieldCell, Unit>(); /* enemysに入っている敵への攻撃可能範囲が全て格納される */
 
-        foreach (var enemy in enemys)
+        foreach (var enemy in enemies)
         {
             Dictionary<FieldCell, Unit> attackRangeCell = InvestigateUnitAttackRangeCell(enemy, field); /* 敵1ユニット分の攻撃可能範囲を取得 */
             if (attackRangeCell == null)
             {
                 continue;
             }
-
             if (attackRangeCell.Count <= 0)
             {
                 continue;
             }
 
             /* 攻撃可能範囲を一つのDictionaryにまとめる */
-            foreach(var (attackCell,unit) in attackRangeCell)
+            foreach (var (attackCell, unit) in attackRangeCell)
             {
-                if (!attackRangeCells.ContainsKey(attackCell))
-                {
-                    attackRangeCells.Add(attackCell, unit);
-                }
+                attackRangeCells.TryAdd(attackCell, unit);
             }
         }
 
@@ -311,7 +332,6 @@ public class NavigationAI
                 }
             }
         }
-        
 
         return attackableCell;
     }

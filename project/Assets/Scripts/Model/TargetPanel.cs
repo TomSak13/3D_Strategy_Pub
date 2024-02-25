@@ -1,12 +1,12 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class TargetPanel : MonoBehaviour
 {
-    private FieldCell _focusCell;
+    private FieldCell _focusCell = default!;
 
     public FieldCell FocusCell { get => _focusCell; }
+
     private void Update()
     {
         if (_focusCell == null)
@@ -23,10 +23,11 @@ public class TargetPanel : MonoBehaviour
         {
             return;
         }
+
         _focusCell = cell;
     }
 
-    public void MoveNeighborFocusCell(KeyCode keycode, GameFieldData fieldData)
+    public void MoveNeighborFocusCell(KeyCode keycode)
     {
         List<FieldCell> neighbor = _focusCell.NeighborCells;
         Vector3 nextCellPos = _focusCell.transform.position;

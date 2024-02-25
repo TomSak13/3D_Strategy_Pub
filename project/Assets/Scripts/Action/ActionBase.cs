@@ -1,22 +1,11 @@
-
+﻿
 public abstract class ActionBase
 {
-    protected Unit _actionUnit;
-    protected bool _isActionStart;
-
-    public bool IsActionStart { get => _isActionStart; }
+    protected Unit _actionUnit = default!;
 
     /// <summary>
     /// 行動の実行
     /// </summary>
-    public virtual void Execute(UnitController unitController)
-    {
-
-    }
-
-    public virtual bool IsFinishedAction(UnitController unitController)
-    {
-        return true;
-    }
-
+    /// <param name="unitController"></param>
+    public abstract void Execute(UnitController unitController);
 }

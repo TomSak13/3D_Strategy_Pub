@@ -7,7 +7,7 @@
 
 プレイヤーが入力した戦略をユニットへの通知する際のシーケンスを下記に示します。
 
-![入力からユニットへの戦略通知シーケンス](img/inputSeq.png)
+![入力からユニットへの戦略通知シーケンス](/doc/img/inputSeq.png)
 
 ターン制御を行う「TurnChanger」はターンが切り替わった際に、次に行動選択するユニットを決める「TargetSelecter」にターンが切り替わった
 事を通知します。そして、「TargetSelecter」が次に行動するユニットを選択し、「InputStrategyShaper」へ次に行動するユニットを通知します。
@@ -18,7 +18,7 @@
 
 敵AIが決定した戦略をユニットへ通知する際のシーケンスを下記に示します。
 
-![敵AIからユニットへの戦略通知シーケンス](img/strategyAISeq.png)
+![敵AIからユニットへの戦略通知シーケンス](/doc/img/strategyAISeq.png)
 
 ターン制御を行う「TurnChanger」から「TargetSelecter」までの流れは入力からユニットへの戦略通知シーケンスと同じ流れで行います。
 入力からユニットへの戦略通知シーケンスと違うのは、「TargetSelecter」から次に行動するユニットを通知されるのが「StrategyAI」となります。「StrategyAI」はフィールドの状況を確認し、ユニットへ通知する行動を決めます。

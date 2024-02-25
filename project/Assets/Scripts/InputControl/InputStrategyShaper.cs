@@ -1,114 +1,85 @@
 ﻿using System;
-using System.Collections.Generic;
+using UniRx;
 using UnityEngine;
 
-public class InputStrategyShaper : MonoBehaviour
+public class InputStrategyShaper : IDisposable
 {
-    [SerializeField] private UnitController _unitController;
-    [SerializeField] private NavigationAI _navigationAI;
     private CharacterAI _characterAI;
-    [SerializeField] private InputReceiver _receiver;
     private GameFieldData _field;
 
     private GameFieldData.Turn _assignTurn;
 
-    public event Action UnitActFinishedEvent;
+    private bool IsAvailableInput;
 
-    private void Update()
+    public event Action UnitActFinishedEvent = default!;
+
+    // inputReceiverから受け取った戦略をもらうためのSubject
+    public readonly Subject<CharacterAI.Strategy> InputStrategyNotifySubject = new Subject<CharacterAI.Strategy>();
+
+    public InputStrategyShaper(GameFieldData fieldData, GameFieldData.Turn assignTurn, UnitController unitController)
     {
-        if (_receiver == null || _characterAI == null)
-        {
-            return;
-        }
-        if (_field == null)
-        {
-            return;
-        }
-
-        if (_field.CurrentTarget == null 
-            || _field.CurrentTurn != _assignTurn)
-        {
-            return;
-        }
-
-        if(_receiver.IsInputStrategy() && _field.CurrentTarget.ControlState == Unit.ActControlState.None)
-        {
-            _field.CurrentTarget.ControlState = Unit.ActControlState.ThinkStrategy;
-        }
-
-        switch (_field.CurrentTarget.ControlState)
-        {
-            case Unit.ActControlState.None:
-                break;
-            case Unit.ActControlState.ThinkStrategy:
-                ConvertInputToStrategy();
-                _field.CurrentTarget.ControlState = Unit.ActControlState.StartAct;
-                break;
-            case Unit.ActControlState.StartAct:
-                if (!_characterAI.ActUnit())
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.Finished; /* 行動終了 */
-                }
-                else
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.IsInAct; /* 同期待ちへ入る */
-                }
-                break;
-            case Unit.ActControlState.IsInAct:
-                if (_characterAI.IsFinishedAct()) /* 行動終了待ち */
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.StartAct; /* 次の行動へ */
-                }
-                break;
-            case Unit.ActControlState.Finished:
-                NotifyInputActionFinished();
-                _field.CurrentTarget.ControlState = Unit.ActControlState.None;
-                _field.CurrentTarget.EndTurn();
-                break;
-            default:
-                break;
-        }
-    }
-
-    public void Initialize(GameFieldData fieldData, GameFieldData.Turn assignTurn)
-    {
-        _characterAI = new CharacterAI();
-        _characterAI.Initialize(fieldData, _unitController);
-
         _field = fieldData;
-
         _assignTurn = assignTurn;
+        _characterAI = new CharacterAI(fieldData, unitController);
+
+        IsAvailableInput = false;
+
+        InputStrategyNotifySubject.Subscribe(
+            strategy =>
+            {
+                if (!IsAvailableInput)
+                {
+                    return;
+                }
+
+                IsAvailableInput = false;
+
+                FieldCell destinationCell = null!;
+                switch (strategy)
+                {
+                    case CharacterAI.Strategy.Attack:
+                    case CharacterAI.Strategy.Defense:
+                    case CharacterAI.Strategy.Balance:
+                        break;
+                    case CharacterAI.Strategy.Recovery:
+                        Unit neighborEnemy = _characterAI.SeekNeighborEnemy(_field.CurrentTarget);
+                        destinationCell = NavigationAI.InvestigateEscapePosition(_field.CurrentTarget.OnCell, neighborEnemy.OnCell, _field);
+                        break;
+                    default:
+                        break;
+                }
+                _characterAI.SetStrategy(strategy, destinationCell, _field);
+                _characterAI.Act(this); // CharacterAIに行動開始通知
+            },
+
+            error =>
+            {
+                Debug.LogError("Error");
+            },
+            () =>
+            {
+                
+            });
     }
 
     public void StartWaitInput()
     {
-        _characterAI.SetTargetUnit(_field.CurrentTarget);
+        _characterAI.TargetUnit = _field.CurrentTarget;
+        IsAvailableInput = true;
     }
 
-    private void ConvertInputToStrategy()
+    /// <summary>
+    /// 行動指示をしたユニットの行動が終了
+    /// </summary>
+    public void FinishCurrentTargetTurn()
     {
-        FieldCell destinationCell = null;
-
-        CharacterAI.Strategy nextStrategy = _receiver.PopNextStrategy();
-
-        switch (nextStrategy)
-        {
-            case CharacterAI.Strategy.Attack:
-            case CharacterAI.Strategy.Defense:
-            case CharacterAI.Strategy.Balance:
-                break;
-            case CharacterAI.Strategy.Recovery:
-                Unit NeighborEnemy = _characterAI.SeekNeighborEnemy(_field.CurrentTarget);
-                destinationCell = NavigationAI.InvestigateEscapePosition(_field.CurrentTarget.OnCell, NeighborEnemy.OnCell, _field);
-                break;
-            default:
-                break;
-        }
-        _characterAI.SetStrategy(nextStrategy, destinationCell, _field);
+        _field.CurrentTarget.ControlState = Unit.ActControlState.None;
+        _field.CurrentTarget.EndTurn();
+        UnitActFinishedEvent?.Invoke();
     }
 
-    public void NotifyInputActionFinished()
+    public void Dispose()
     {
-        UnitActFinishedEvent.Invoke(); // 入力待ち＋行動終了待ちの終了通知
+        InputStrategyNotifySubject.Dispose();
     }
 }

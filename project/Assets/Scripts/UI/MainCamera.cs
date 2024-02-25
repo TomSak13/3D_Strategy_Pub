@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class MainCamera : MonoBehaviour
 {
@@ -10,22 +10,22 @@ public class MainCamera : MonoBehaviour
     }
 
     private DistanceParam _distanceParam;
-    private const float _xRadius = 5f;
-    private const float _yRadius = 8f;
-    private const float _angle_yAxis = 45f; // 初期状態では真後ろから
-    private const float _angle_xAxis = 270f; // 初期状態では斜め下45度からの角度で見る
-    private const float _cameraAngleSensitivity = 3f;
+    private const float XRadius = 5f;
+    private const float YRadius = 8f;
+    private const float AngleYAxis = 45f; // 初期状態では真後ろから
+    private const float AngleXAxis = 270f; // 初期状態では斜め下45度からの角度で見る
+    private const float CameraAngleSensitivity = 3f;
 
-    [SerializeField] private TargetPanel _cursorObject;
-    [SerializeField] private InputReceiver _inputReceiver;
+    [SerializeField] private TargetPanel _cursorObject = default!;
+    [SerializeField] private InputReceiver _inputReceiver = default!;
 
     private void Start()
     {
         _distanceParam = new DistanceParam()
         {
-            DistanceCamSq = Mathf.Sqrt((_xRadius * _xRadius) + (_yRadius * _yRadius)), // カメラから注視する物体までの距離
-            XAngleAxis = _angle_xAxis,
-            YAngleAxis = _angle_yAxis
+            DistanceCamSq = Mathf.Sqrt((XRadius * XRadius) + (YRadius * YRadius)), // カメラから注視する物体までの距離
+            XAngleAxis = AngleXAxis,
+            YAngleAxis = AngleYAxis
         };
     }
 
@@ -37,7 +37,7 @@ public class MainCamera : MonoBehaviour
             return;
         }
 
-        FollowCusor();
+        FollowCursor();
     }
 
     private void LateUpdate()
@@ -49,19 +49,26 @@ public class MainCamera : MonoBehaviour
         }
 
         /* カメラ用パラメータの更新 */
-        _inputReceiver.UpdateLatestCameraDistance(ref _distanceParam, _cameraAngleSensitivity);
+        var distanceParamDiff = _inputReceiver.GetInputMouseParam();
+        /* マウスホイールで注視オブジェクトとの距離更新 */
+        _distanceParam.DistanceCamSq -= distanceParamDiff.distanceCamSqDiff;
+        /* 右クリックを押したままマウスを動かした場合に視点移動 */
+        _distanceParam.XAngleAxis -= distanceParamDiff.angleAxisDiff.x * CameraAngleSensitivity; /* x軸方向の移動量 */
+        _distanceParam.YAngleAxis -= distanceParamDiff.angleAxisDiff.y * CameraAngleSensitivity; /* y軸方向の移動量 */
     }
-    
-    private void FollowCusor()
-    {
-        float y_rad = _distanceParam.YAngleAxis * Mathf.Deg2Rad;
-        float x_rad = _distanceParam.XAngleAxis * Mathf.Deg2Rad;
 
+    private void FollowCursor()
+    {
+        float yRad = _distanceParam.YAngleAxis * Mathf.Deg2Rad;
+        float xRad = _distanceParam.XAngleAxis * Mathf.Deg2Rad;
+
+        var position = _cursorObject.transform.position;
         transform.position = new Vector3(
-            _cursorObject.transform.position.x + (_distanceParam.DistanceCamSq * Mathf.Sin(y_rad) * Mathf.Cos(x_rad)),
-            _cursorObject.transform.position.y + (_distanceParam.DistanceCamSq * Mathf.Cos(y_rad)),
-            _cursorObject.transform.position.z + (_distanceParam.DistanceCamSq * Mathf.Sin(y_rad) * Mathf.Sin(x_rad))
+            position.x + (_distanceParam.DistanceCamSq * Mathf.Sin(yRad) * Mathf.Cos(xRad)),
+            position.y + (_distanceParam.DistanceCamSq * Mathf.Cos(yRad)),
+            position.z + (_distanceParam.DistanceCamSq * Mathf.Sin(yRad) * Mathf.Sin(xRad))
             );
+
         transform.LookAt(_cursorObject.transform);
     }
 
@@ -71,6 +78,7 @@ public class MainCamera : MonoBehaviour
         {
             return;
         }
+
         _cursorObject.MoveFocusCell(unit.OnCell);
     }
 }

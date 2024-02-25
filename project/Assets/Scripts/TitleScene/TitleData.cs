@@ -41,59 +41,56 @@ public class TitleData : MonoBehaviour
 
     public class ContentCombo
     {
-        public Button ContentButton;
-        public Dictionary<InputDirection, ContentCombo> Neighbor;
-        public Dictionary<InputSelect ,UiHierarchy> NeighborHierarchy;
+        public Button ContentButton = default!;
+        public Dictionary<InputDirection, ContentCombo> Neighbor = default!;
+        public Dictionary<InputSelect, UiHierarchy> NeighborHierarchy = default!;
     }
 
-    public event Action TitleDataChanged;
-    [SerializeField] private CommonParam _commonParam;
+    public event Action TitleDataChanged = default!;
 
     private UiHierarchy _currentHierarchy;
 
-    private ContentCombo _selectedContentCombo;
-    private ContentCombo _selectedDifficultyCombo;
-    private Dictionary<ContentCombo, SettingContents> _titleContents;
-    private Dictionary<ContentCombo, Difficulty> _difficultyContents;
-    
-    public UiHierarchy CurrentHierarchy { get => _currentHierarchy; set => _currentHierarchy = value; }
+    private ContentCombo _selectedContentCombo = default!;
+    private ContentCombo _selectedDifficultyCombo = default!;
+    private Dictionary<ContentCombo, Difficulty> _difficultyContents = default!;
+
+    [SerializeField]
+    Button _startButton = default!;
+    [SerializeField]
+    Button _difficultyButton = default!;
+    [SerializeField]
+    Button _easyButton = default!;
+    [SerializeField]
+    Button _normalButton = default!;
+    [SerializeField]
+    Button _difficultButton = default!;
+
+    public UiHierarchy CurrentHierarchy  => _currentHierarchy;
 
 
     private void Start()
     {
-        initButton();
+        InitButton();
 
         _currentHierarchy = UiHierarchy.Route;
-        _commonParam.GameDifficulty = Difficulty.Normal;
+        GameSettingParam.GameDifficulty = Difficulty.Normal;
     }
 
-    private void initButton()
+    private void InitButton()
     {
-        Button startButton = GameObject.Find("GameStartButton").GetComponent<Button>();
-        Button difficultyButton = GameObject.Find("DifficultySettingButton").GetComponent<Button>();
+        ContentCombo startCombo = CreateContentCombo(_startButton, UiHierarchy.StartGame, UiHierarchy.Route);
+        ContentCombo difficultyCombo = CreateContentCombo(_difficultyButton, UiHierarchy.Difficulty, UiHierarchy.Route);
+        ContentCombo easyCombo = CreateContentCombo(_easyButton, UiHierarchy.Route, UiHierarchy.Route);
+        ContentCombo normalCombo = CreateContentCombo(_normalButton, UiHierarchy.Route, UiHierarchy.Route);
+        ContentCombo difficultCombo = CreateContentCombo(_difficultButton, UiHierarchy.Route, UiHierarchy.Route);
 
-        Button easyButton = GameObject.Find("EasyButton").GetComponent<Button>();
-        Button normalButton = GameObject.Find("NormalButton").GetComponent<Button>();
-        Button difficultButton = GameObject.Find("DifficultButton").GetComponent<Button>();
+        SetContentComboNeighbor(startCombo, startCombo, difficultyCombo, startCombo, startCombo);
+        SetContentComboNeighbor(difficultyCombo, startCombo, difficultyCombo, difficultyCombo, difficultyCombo);
 
-        ContentCombo startCombo = CreateContentCombo(startButton, UiHierarchy.StartGame, UiHierarchy.Route);
-        ContentCombo difficultyCombo = CreateContentCombo(difficultyButton, UiHierarchy.Difficulty, UiHierarchy.Route);
-        ContentCombo easyCombo = CreateContentCombo(easyButton, UiHierarchy.Route, UiHierarchy.Route);
-        ContentCombo normalCombo = CreateContentCombo(normalButton, UiHierarchy.Route, UiHierarchy.Route);
-        ContentCombo difficultCombo = CreateContentCombo(difficultButton, UiHierarchy.Route, UiHierarchy.Route);
+        SetContentComboNeighbor(easyCombo, easyCombo, normalCombo, easyCombo, easyCombo);
+        SetContentComboNeighbor(normalCombo, easyCombo, difficultCombo, normalCombo, normalCombo);
+        SetContentComboNeighbor(difficultCombo, normalCombo, difficultCombo, difficultCombo, difficultCombo);
 
-        SetContentComboNeghbor(startCombo, startCombo, difficultyCombo, startCombo, startCombo);
-        SetContentComboNeghbor(difficultyCombo, startCombo, difficultyCombo, difficultyCombo, difficultyCombo);
-
-        SetContentComboNeghbor(easyCombo, easyCombo, normalCombo, easyCombo, easyCombo);
-        SetContentComboNeghbor(normalCombo, easyCombo, difficultCombo, normalCombo, normalCombo);
-        SetContentComboNeghbor(difficultCombo, normalCombo, difficultCombo, difficultCombo, difficultCombo);
-
-        _titleContents = new Dictionary<ContentCombo, SettingContents>()
-        {
-            {startCombo, SettingContents.GameStart},
-            {difficultyCombo, SettingContents.Difficulty}
-        };
         _difficultyContents = new Dictionary<ContentCombo, Difficulty>()
         {
             {easyCombo, Difficulty.Easy},
@@ -109,7 +106,7 @@ public class TitleData : MonoBehaviour
         ContentCombo retCombo = new ContentCombo
         {
             ContentButton = target,
-            NeighborHierarchy = new Dictionary<InputSelect, UiHierarchy>() 
+            NeighborHierarchy = new Dictionary<InputSelect, UiHierarchy>()
             {
                 {InputSelect.Enter, enter},
                 {InputSelect.Back, back}
@@ -119,7 +116,7 @@ public class TitleData : MonoBehaviour
         return retCombo;
     }
 
-    private void SetContentComboNeghbor(ContentCombo target, ContentCombo upper, ContentCombo down, ContentCombo left, ContentCombo right)
+    private void SetContentComboNeighbor(ContentCombo target, ContentCombo upper, ContentCombo down, ContentCombo left, ContentCombo right)
     {
         target.Neighbor = new Dictionary<InputDirection, ContentCombo>()
         {
@@ -132,27 +129,17 @@ public class TitleData : MonoBehaviour
 
     public ContentCombo GetCurrentSelectedCombo()
     {
-        ContentCombo ret;
-
-        switch (_currentHierarchy)
+        return _currentHierarchy switch
         {
-            case UiHierarchy.Route:
-                ret = _selectedContentCombo;
-                break;
-            case UiHierarchy.Difficulty:
-                ret = _selectedDifficultyCombo;
-                break;
-            default:
-                ret = null;
-                break;
-        }
-
-        return ret;
+            UiHierarchy.Route => _selectedContentCombo,
+            UiHierarchy.Difficulty => _selectedDifficultyCombo,
+            _ => throw new System.InvalidOperationException("choice no exist UiHierarchy")
+        };
     }
 
-    public void SetCommonParamUnitNum(int unitNum)
+    private void SetCommonParamUnitNum(int unitNum)
     {
-        _commonParam.UnitNum = unitNum;
+        GameSettingParam.UnitNum = unitNum;
     }
 
     public void ReceiveInputHierarchy(InputSelect select)
@@ -162,24 +149,19 @@ public class TitleData : MonoBehaviour
             case UiHierarchy.Route:
                 if (_selectedContentCombo != null)
                 {
-                    if (_selectedContentCombo.NeighborHierarchy.ContainsKey(select))
-                    {
-                        _currentHierarchy = _selectedContentCombo.NeighborHierarchy[select];
-                    }
+                    _selectedContentCombo.NeighborHierarchy.TryGetValue(select, out _currentHierarchy);
                 }
                 break;
             case UiHierarchy.Difficulty:
                 if (_selectedDifficultyCombo != null)
                 {
-                    if (_selectedDifficultyCombo.NeighborHierarchy.ContainsKey(select))
-                    {
-                        _currentHierarchy = _selectedDifficultyCombo.NeighborHierarchy[select];
-                    }
+                    _selectedDifficultyCombo.NeighborHierarchy.TryGetValue(select, out _currentHierarchy);
                 }
                 break;
             default:
                 break;
         }
+
         UpdateData();
     }
 
@@ -206,18 +188,25 @@ public class TitleData : MonoBehaviour
                     if (_selectedDifficultyCombo.Neighbor.ContainsKey(inputDirection))
                     {
                         _selectedDifficultyCombo = _selectedDifficultyCombo.Neighbor[inputDirection];
-                        _commonParam.GameDifficulty = _difficultyContents[_selectedDifficultyCombo]; /* 現在選択中の難易度を設定 */
+                        GameSettingParam.GameDifficulty = _difficultyContents[_selectedDifficultyCombo]; /* 現在選択中の難易度を設定 */
                     }
                 }
                 break;
             default:
                 break;
         }
+
         UpdateData();
     }
 
     public void UpdateData()
     {
-        TitleDataChanged.Invoke();
+        TitleDataChanged?.Invoke();
+    }
+
+    public void StartGame(int unitNum)
+    {
+        SetCommonParamUnitNum(unitNum);
+        SceneChanger.LoadGameScene(SceneChanger.GameScene);
     }
 }

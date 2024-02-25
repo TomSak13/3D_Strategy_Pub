@@ -2,107 +2,48 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class StrategyAI : MonoBehaviour
+public class StrategyAI
 {
-    public const int MaxNeighborCell = 10;
-    public const float SearchRadious = 5.0f;
-    public const int DiffBorder = 3;
-    public const float DiffHpAveBorder = 30f;
+    private const int MaxNeighborCell = 10;
+    private const float SearchRadius = 5.0f;
+    private const int DiffBorder = 3;
+    private const float DiffHpAveBorder = 30f;
 
-    public event Action UnitActFinishedEvent;
+    public event Action UnitActFinishedEvent = default!;
 
-    [SerializeField] private UnitController _unitController;
+    private UnitController _unitController;
 
     private Unit.Team _targetTeam;
     private CharacterAI _characterAI;
     private GameFieldData _field;
 
-    private GameFieldData.Turn _assignTurn;
-
-    private RaycastHit[] _neighborCells;
-
-    private void Update()
-    {
-        if (_characterAI == null || _field == null)
-        {
-            return;
-        }
-        if (_field.CurrentTarget == null)
-        {
-            return;
-        }
-        if (_field.CurrentTurn != _assignTurn)
-        {
-            return; /* 違うプレイヤーのターン */
-        }
-
-        switch (_field.CurrentTarget.ControlState)
-        {
-            case Unit.ActControlState.None:
-                break;
-            case Unit.ActControlState.ThinkStrategy:
-                DecideStrategy(_field.CurrentTarget, _field);
-                _field.CurrentTarget.ControlState = Unit.ActControlState.StartAct;
-                break;
-            case Unit.ActControlState.StartAct:
-                if (!_characterAI.ActUnit())
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.Finished; /* 行動終了 */
-                }
-                else
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.IsInAct; /* 同期待ちへ入る */
-                }
-                break;
-            case Unit.ActControlState.IsInAct:
-                if (_characterAI.IsFinishedAct()) /* 行動終了待ち */
-                {
-                    _field.CurrentTarget.ControlState = Unit.ActControlState.StartAct; /* 次の行動へ */
-                }
-                break;
-            case Unit.ActControlState.Finished:
-                UnitActFinishedEvent.Invoke();
-                _field.CurrentTarget.ControlState = Unit.ActControlState.None;
-                _field.CurrentTarget.EndTurn();
-                break;
-            default:
-                break;
-        }
-    }
 
     /// <summary>
     /// このオブジェクト生成時の初期化
     /// </summary>
     /// <param name="team"></param>
-    public void Initialize(Unit.Team team, GameFieldData fieldData)
+    /// <param name="fieldData"></param>
+    /// <param name="unitController"></param>
+    public StrategyAI(Unit.Team team, GameFieldData fieldData, UnitController unitController)
     {
         _targetTeam = team;
         _field = fieldData;
-        _characterAI = new CharacterAI();
-        _characterAI.Initialize(fieldData, _unitController);
+        _unitController = unitController;
 
-        if (_targetTeam == Unit.Team.Player)
-        {
-            _assignTurn = GameFieldData.Turn.PlayerTurn;
-        }
-        else
-        {
-            _assignTurn = GameFieldData.Turn.EnemyTurn;
-        }
-
-        _neighborCells = new RaycastHit[MaxNeighborCell];
+        _characterAI = new CharacterAI(fieldData, _unitController);
     }
 
     /// <summary>
     /// 戦略指示
     /// </summary>
     /// <param name="unit"></param>
-    public void DecideStrategy(Unit unit, GameFieldData fieldData)
+    /// <param name="fieldData"></param>
+    private void DecideStrategy(Unit unit, GameFieldData fieldData)
     {
-        _characterAI.SetTargetUnit(unit);
+        _characterAI.TargetUnit = unit;
 
         int countDiff = CalcDiffUnitsCount(unit.UnitTeam, fieldData);
-        
+
         float hpAveDiff = CalcDiffHpAverage(unit.UnitTeam, fieldData);
 
         if (Mathf.Abs(countDiff) > DiffBorder || Mathf.Abs(hpAveDiff) > DiffHpAveBorder)
@@ -110,125 +51,109 @@ public class StrategyAI : MonoBehaviour
             if (countDiff > 0)
             {
                 /* 優勢 */
-                _characterAI.SetStrategy(CharacterAI.Strategy.Attack, null, fieldData);
+                _characterAI.SetStrategy(CharacterAI.Strategy.Attack, null!, fieldData);
             }
             else
             {
                 /* 劣勢 */
-                FieldCell escapeCell;
-
-                if (unit.UnitTeam == Unit.Team.Player)
+                var escapeCell = unit.UnitTeam switch
                 {
-                    escapeCell = NavigationAI.InvestigateEscapePosition(SeekCenter(fieldData, Unit.Team.Enemy), SeekCenter(fieldData, Unit.Team.Player), fieldData);
-                }
-                else
-                {
-                    escapeCell = NavigationAI.InvestigateEscapePosition(SeekCenter(fieldData, Unit.Team.Player), SeekCenter(fieldData, Unit.Team.Enemy), fieldData);
-                }
+                    Unit.Team.Player => NavigationAI.InvestigateEscapePosition(SeekCenter(fieldData, Unit.Team.Enemy),
+                        SeekCenter(fieldData, Unit.Team.Player), fieldData),
+                    _ => NavigationAI.InvestigateEscapePosition(SeekCenter(fieldData, Unit.Team.Player),
+                        SeekCenter(fieldData, Unit.Team.Enemy), fieldData)
+                };
                 _characterAI.SetStrategy(CharacterAI.Strategy.Recovery, escapeCell, fieldData);
             }
         }
         else
         {
             /* 陣地が遠い場合はそのままバランス戦略を渡す */
-            _characterAI.SetStrategy(CharacterAI.Strategy.Balance, null, fieldData);
+            _characterAI.SetStrategy(CharacterAI.Strategy.Balance, null!, fieldData);
         }
+    }
+
+    /// <summary>
+    /// 行動指示をしたユニットの行動が終了
+    /// </summary>
+    public void FinishCurrentTargetTurn()
+    {   
+        _field.CurrentTarget.ControlState = Unit.ActControlState.None;
+        _field.CurrentTarget.EndTurn();
+        UnitActFinishedEvent?.Invoke();
     }
 
     /// <summary>
     /// 各ユニットを更新
     /// </summary>
-    public bool ActUnits()
+    public void ActUnits()
     {
-        if (_field == null)
-        {
-            return false;
-        }
-
-        /* 各キャラクターAIへ戦略通知 */
-        _field.CurrentTarget.ControlState = Unit.ActControlState.ThinkStrategy;
-
-        return true;
+        DecideStrategy(_field.CurrentTarget, _field);
+        _characterAI.Act(this); // CharacterAIに行動通知
     }
 
-    private Vector3 CalcIntCordinateFromFloat(Vector3 cordinate)
+    private Vector3 CalcIntCoordinateFromFloat(Vector3 coordinate)
     {
-        Vector3 retCordinate = Vector3.zero;
+        Vector3 retCoordinate = Vector3.zero;
 
-        retCordinate.x = Mathf.Round(cordinate.x);
-        retCordinate.y = Mathf.Round(cordinate.y);
-        retCordinate.z = Mathf.Round(cordinate.z);
+        retCoordinate.x = Mathf.Round(coordinate.x);
+        retCoordinate.y = Mathf.Round(coordinate.y);
+        retCoordinate.z = Mathf.Round(coordinate.z);
 
-        return retCordinate;
+        return retCoordinate;
     }
 
-    private bool IsNeighborCenter(GameFieldData fieldData, Unit unit)
+    private Vector3 CalcCenterCoordinate(List<Unit> units)
     {
-        FieldCell allyCenterCell = SeekCenter(fieldData, Unit.Team.Player);
-        FieldCell enemyCenterCell = SeekCenter(fieldData, Unit.Team.Enemy);
-
-        if (unit.UnitTeam == Unit.Team.Player)
-        {
-            if (Vector3.SqrMagnitude(enemyCenterCell.transform.position - allyCenterCell.transform.position)
-                    < Vector3.SqrMagnitude(allyCenterCell.transform.position - unit.transform.position) + Mathf.Pow(unit.Move, 2f))
-            {
-                return true;
-            }
-        }
-        else
-        {
-            if (Vector3.SqrMagnitude(enemyCenterCell.transform.position - allyCenterCell.transform.position)
-                    < Vector3.SqrMagnitude(enemyCenterCell.transform.position - unit.transform.position) + Mathf.Pow(unit.Move, 2f))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    private Vector3 CalcCenterCordinate(List<Unit> units)
-    {
-        Vector3 centerCordinate = Vector3.zero;
+        Vector3 centerCoordinate = Vector3.zero;
 
         if (units == null)
         {
-            return centerCordinate;
+            return centerCoordinate;
         }
         if (units.Count == 0)
         {
-            return centerCordinate;
+            return centerCoordinate;
         }
 
         foreach (var unit in units)
         {
             if (unit.OnCell != null)
             {
-                centerCordinate += unit.OnCell.transform.position;
+                centerCoordinate += unit.OnCell.transform.position;
             }
         }
-        centerCordinate = centerCordinate / units.Count;
-        centerCordinate = CalcIntCordinateFromFloat(centerCordinate);
+        centerCoordinate = centerCoordinate / units.Count;
+        centerCoordinate = CalcIntCoordinateFromFloat(centerCoordinate);
 
-        return centerCordinate;
+        return centerCoordinate;
     }
 
-    public FieldCell GetNeighborCell(Vector3 position, float groundCheckRadius)
+    /// <summary>
+    /// CalcCenterCoordinate()で指定した座標のセルがない場合に呼ばれる。
+    /// </summary>
+    /// <param name="position"></param>
+    /// <param name="groundCheckRadius"></param>
+    /// <returns></returns>
+    private FieldCell GetNeighborCell(Vector3 position, float groundCheckRadius)
     {
-        FieldCell retCell = null;
+        Debug.Log("not found Center Cell from CalcCenterCoordinate()");
+        FieldCell retCell = null!;
+        RaycastHit[] neighborCells = new RaycastHit[MaxNeighborCell];
 
-        if (_neighborCells == null)
-        {
-            return null;
-        }
+        Physics.SphereCastNonAlloc(position, groundCheckRadius, Vector3.forward, neighborCells);
 
-        Physics.SphereCastNonAlloc(position, groundCheckRadius, Vector3.forward, _neighborCells);
-
-        foreach (var hitObj in _neighborCells)
+        foreach (var hitObj in neighborCells)
         {
             if (hitObj.collider.gameObject.CompareTag(FieldCell.ObjTag))
             {
                 retCell = hitObj.collider.gameObject.GetComponent<FieldCell>();
             }
+        }
+
+        if (retCell == null)
+        {
+            throw new System.InvalidOperationException("GetNeighborCell err by algorithm");
         }
 
         return retCell;
@@ -266,7 +191,7 @@ public class StrategyAI : MonoBehaviour
             return 0;
         }
 
-        foreach(var unit in units)
+        foreach (var unit in units)
         {
             ave += unit.CurrentHp;
         }
@@ -305,27 +230,20 @@ public class StrategyAI : MonoBehaviour
     /// <returns></returns>
     private FieldCell SeekCenter(GameFieldData fieldData, Unit.Team team)
     {
-        FieldCell retCell = null;
         Vector3 center;
+
         if (team == Unit.Team.Player)
         {
-            center = CalcCenterCordinate(fieldData.PlayerUnits);
+            center = CalcCenterCoordinate(fieldData.PlayerUnits);
         }
         else
         {
-            center = CalcCenterCordinate(fieldData.EnemyUnits);
+            center = CalcCenterCoordinate(fieldData.EnemyUnits);
         }
 
-        if (fieldData.FieldCells.ContainsKey(center))
-        {
-            retCell = fieldData.FieldCells[center];
-        }
-        else
-        {
+        var retCell = fieldData.FieldCells.TryGetValue(center, out var cell) ? cell :
             /* 重心からrayを出して、rayに当たるFieldCellを探す */
-            retCell = GetNeighborCell(center, SearchRadious);
-        }
-
+            GetNeighborCell(center, SearchRadius);
 
         return retCell;
     }

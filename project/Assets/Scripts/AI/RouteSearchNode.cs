@@ -1,62 +1,64 @@
 ﻿using System.Collections.Generic;
+
 public class RouteSearchNode
 {
-    private FieldCell _cell;
-    private int _needCostForGoal;
-    private int _moveRemaining;
+    private readonly int _moveRemaining;
 
-    private RouteSearchNode _prevNode;
+    public FieldCell Cell { get; }
+    public RouteSearchNode PrevNode { get; }
 
-    public FieldCell Cell { get => _cell; set => _cell = value; }
-    public RouteSearchNode PrevNode { get => _prevNode; set => _prevNode = value; }
-
-    public RouteSearchNode(FieldCell nodeCell, int needCostForGoal, int moveRemaining, RouteSearchNode prevNode)
+    public RouteSearchNode(FieldCell nodeCell, int movePower)
     {
-        _cell = nodeCell;
-        _needCostForGoal = needCostForGoal;
-        _moveRemaining = moveRemaining;
-        _prevNode = prevNode;
+        Cell = nodeCell;
+        _moveRemaining = movePower;
+        PrevNode = null!;
+    }
+    private RouteSearchNode(FieldCell nodeCell, RouteSearchNode prevNode)
+    {
+        Cell = nodeCell;
+        _moveRemaining = prevNode._moveRemaining - 1;
+        PrevNode = prevNode;
     }
 
-    // 周囲四近傍の探索
-    public List<RouteSearchNode> SearchNeighbor(GameFieldData fieldList)
+    /// <summary>
+    /// 周囲四近傍の探索
+    /// </summary>
+    /// <param name="fieldList"></param>
+    /// <returns></returns>
+    public static List<RouteSearchNode> SearchNeighbor(GameFieldData fieldList, RouteSearchNode node)
     {
         List<RouteSearchNode> neighborList = new List<RouteSearchNode>();
 
-        List<FieldCell> neighborCells = _cell.NeighborCells;
+        List<FieldCell> neighborCells = node.Cell.NeighborCells;
 
         if (neighborCells == null)
         {
-            return null;
+            throw new System.InvalidOperationException("_cell.neighborCells field is null.");
         }
 
         foreach (var cell in neighborCells)
         {
-            if (CheckMovable(cell, fieldList))
+            if (CheckMovable(cell, fieldList, node))
             {
-                neighborList.Add(CreateNextNode(cell));
+                neighborList.Add(CreateNextNode(cell, node));
             }
         }
 
         return neighborList;
     }
 
-    private RouteSearchNode CreateNextNode(FieldCell nodePosition)
-    {
-        RouteSearchNode node = new RouteSearchNode(nodePosition, _needCostForGoal - 1, _moveRemaining - 1, this);
+    private static RouteSearchNode CreateNextNode(FieldCell nodePosition, RouteSearchNode parentNode)
+        => new(nodePosition, parentNode);
 
-        return node;
-    }
-
-    private bool CheckMovable(FieldCell targetCell, GameFieldData fieldData)
+    private static bool CheckMovable(FieldCell targetCell, GameFieldData fieldData, RouteSearchNode node)
     {
         bool ret = false;
 
-        if (fieldData.FieldCells.ContainsValue(targetCell))
+        if (fieldData.FieldCells.ContainsKey(targetCell.gameObject.transform.position))
         {
             if (targetCell)
             {
-                if (targetCell.Movable && (_moveRemaining > 0))
+                if (targetCell.Movable && (node._moveRemaining > 0))
                 {
                     ret = true;
                 }

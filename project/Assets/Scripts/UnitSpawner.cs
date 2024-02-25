@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class UnitSpawner
@@ -10,27 +10,19 @@ public class UnitSpawner
         Boss
     }
 
-    private Dictionary<UnitType, GameObject> _unitDict;
+    private Dictionary<UnitType, Unit> _unitDict = new Dictionary<UnitType, Unit>();
 
-    public Dictionary<UnitType, GameObject> UnitDict { get => _unitDict; }
+    public Dictionary<UnitType, Unit> UnitDict { get => _unitDict; }
 
-    public UnitSpawner()
+    public Unit SpawnUnit(Vector3 coordinate, Quaternion quaternion, UnitType type)
     {
-        _unitDict = new Dictionary<UnitType, GameObject>();
-    }
-
-    public Unit SpawnUnit(Vector3 cordinate, Quaternion quaternion, UnitType type)
-    {
-        GameObject gameObj;
-
         if (_unitDict.ContainsKey(type) == false)
         {
-            return null;
+            throw new System.InvalidOperationException("not found Type:"+type);
         }
 
-        gameObj = GameObject.Instantiate(_unitDict[type], cordinate, quaternion);
-        Unit cell = gameObj.GetComponent<Unit>();
+        Unit unit = GameObject.Instantiate<Unit>(_unitDict[type], coordinate, quaternion);
 
-        return cell;
+        return unit;
     }
 }
